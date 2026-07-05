@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import { useSceneStore } from '@/store/scene'
 import { useToolStore } from '@/store/tools'
 import { Element, createElement } from '@/types/elements'
-import { createCreateCommand, createUpdateCommand, pushCommand, redo, undo } from '@/store/history'
+import { redo, undo } from '../store/undo'
 
 export type HandlePosition = 'nw' | 'ne' | 'sw' | 'se'
 
@@ -43,7 +43,6 @@ export function Canvas() {
     origWidth?: number
     origHeight?: number
   } | null>(null)
-  const beforeElementRef = useRef<Element | null>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -185,7 +184,6 @@ export function Canvas() {
           points: [{ x, y }],
         })
         useSceneStore.getState().addElement(el)
-        beforeElementRef.current = null
         draggingRef.current = { id: el.id, startX: x, startY: y, mode: 'freedraw' }
         return
       }
@@ -198,7 +196,6 @@ export function Canvas() {
         fillColor: 'transparent',
       })
       useSceneStore.getState().addElement(el)
-      beforeElementRef.current = null
       draggingRef.current = { id: el.id, startX: x, startY: y, mode: 'draw' }
       return
     }
@@ -210,7 +207,6 @@ export function Canvas() {
       if (selected) {
         const handle = getHandleAt(selected, x, y)
         if (handle) {
-          beforeElementRef.current = { ...selected, points: selected.points ? [...selected.points] : undefined }
           draggingRef.current = {
             id: selected.id,
             startX: x,
@@ -229,11 +225,9 @@ export function Canvas() {
       const hit = hitTest(x, y)
       if (hit) {
         useSceneStore.getState().setSelectedId(hit.id)
-        beforeElementRef.current = { ...hit, points: hit.points ? [...hit.points] : undefined }
         draggingRef.current = { id: hit.id, startX: x, startY: y, mode: 'move', origX: hit.x, origY: hit.y }
       } else {
         useSceneStore.getState().setSelectedId(null)
-        beforeElementRef.current = null
       }
     }
   }
@@ -313,22 +307,7 @@ export function Canvas() {
   }
 
   function handlePointerUp() {
-    const drag = draggingRef.current
-    const before = beforeElementRef.current
-
-    if (drag) {
-      const after = useSceneStore.getState().elements.find((element) => element.id === drag.id)
-      if (drag.mode === 'draw' || drag.mode === 'freedraw') {
-        if (after) {
-          pushCommand(createCreateCommand(after))
-        }
-      } else if (before && after) {
-        pushCommand(createUpdateCommand(before, after))
-      }
-    }
-
     draggingRef.current = null
-    beforeElementRef.current = null
   }
 
   return (
