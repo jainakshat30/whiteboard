@@ -6,6 +6,7 @@ const tools: { id: Tool; label: string }[] = [
   { id: 'selection', label: 'Select' },
   { id: 'rectangle', label: 'Rectangle' },
   { id: 'ellipse', label: 'Ellipse' },
+  { id: 'freedraw', label: 'Pen' },
 ]
 
 export function Toolbar() {

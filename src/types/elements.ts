@@ -1,4 +1,4 @@
-export type ElementType = 'line' | 'rectangle' | 'circle' | 'text' | 'ellipse';
+export type ElementType = 'line' | 'rectangle' | 'circle' | 'text' | 'ellipse' | 'freedraw';
 
 export type Element = {
     id: string
@@ -9,6 +9,7 @@ export type Element = {
     height: number
     strokeColor: string
     fillColor: string
+    points?: { x: number; y: number }[]
     version: number // bumped on every edit — useful later for sync/undo
 }
 

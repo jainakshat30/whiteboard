@@ -5,6 +5,7 @@ type SceneState = {
   elements: Element[]
   selectedId: string | null
   addElement: (el: Element) => void
+  removeElement: (id: string) => void
   updateElement: (id: string, patch: Partial<Element>) => void
   setSelectedId: (id: string | null) => void
 }
@@ -14,6 +15,11 @@ export const useSceneStore = create<SceneState>((set) => ({
   selectedId: null,
   addElement: (el) =>
     set((state) => ({ elements: [...state.elements, el] })),
+  removeElement: (id) =>
+    set((state) => ({
+      elements: state.elements.filter((el) => el.id !== id),
+      selectedId: state.selectedId === id ? null : state.selectedId,
+    })),
   updateElement: (id, patch) =>
     set((state) => ({
       elements: state.elements.map((el) =>

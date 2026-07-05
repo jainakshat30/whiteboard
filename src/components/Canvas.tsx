@@ -4,7 +4,31 @@ import { useEffect, useRef } from 'react'
 import { useSceneStore } from '@/store/scene'
 import { useToolStore } from '@/store/tools'
 import { Element, createElement } from '@/types/elements'
+import { createCreateCommand, createUpdateCommand, pushCommand, redo, undo } from '@/store/history'
 
+export type HandlePosition = 'nw' | 'ne' | 'sw' | 'se'
+
+const HANDLE_SIZE = 8
+
+export function getHandleAt(el: Element, x: number, y: number): HandlePosition | null {
+  const handles: { pos: HandlePosition; hx: number; hy: number }[] = [
+    { pos: 'nw', hx: el.x, hy: el.y },
+    { pos: 'ne', hx: el.x + el.width, hy: el.y },
+    { pos: 'sw', hx: el.x, hy: el.y + el.height },
+    { pos: 'se', hx: el.x + el.width, hy: el.y + el.height },
+  ]
+
+  for (const h of handles) {
+    if (
+      x >= h.hx - HANDLE_SIZE && x <= h.hx + HANDLE_SIZE &&
+      y >= h.hy - HANDLE_SIZE && y <= h.hy + HANDLE_SIZE
+    ) {
+      return h.pos
+    }
+  }
+
+  return null
+}
 
 export function Canvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -12,10 +36,14 @@ export function Canvas() {
     id: string
     startX: number
     startY: number
-    mode: 'draw' | 'move'
+    mode: 'draw' | 'move' | 'resize' | 'freedraw'
+    handle?: HandlePosition
     origX?: number
     origY?: number
+    origWidth?: number
+    origHeight?: number
   } | null>(null)
+  const beforeElementRef = useRef<Element | null>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -43,6 +71,20 @@ export function Canvas() {
         ctx.strokeStyle = el.strokeColor
         ctx.fillStyle = el.fillColor
         ctx.lineWidth = 2
+
+      if (el.type === 'freedraw' && el.points) {
+        ctx.beginPath()
+        ctx.strokeStyle = el.strokeColor
+        ctx.lineWidth = 2
+        ctx.lineJoin = 'round'
+        ctx.lineCap = 'round'
+        el.points.forEach((p, i) => {
+          if (i === 0) ctx.moveTo(p.x, p.y)
+          else ctx.lineTo(p.x, p.y)
+        })
+        ctx.stroke()
+        return
+      }
 
         if (el.type === 'rectangle') {
             ctx.fillRect(el.x, el.y, el.width, el.height)
@@ -79,15 +121,39 @@ export function Canvas() {
             ctx.setLineDash([4, 4])
             ctx.strokeRect(selected.x - 4, selected.y - 4, selected.width + 8, selected.height + 8)
             ctx.setLineDash([])
+
+          ctx.fillStyle = 'white'
+          ctx.strokeStyle = '#4f46e5'
+          ctx.lineWidth = 1
+          const positions = [
+            [selected.x, selected.y],
+            [selected.x + selected.width, selected.y],
+            [selected.x, selected.y + selected.height],
+            [selected.x + selected.width, selected.y + selected.height],
+          ]
+          for (const [hx, hy] of positions) {
+            ctx.fillRect(hx - 4, hy - 4, 8, 8)
+            ctx.strokeRect(hx - 4, hy - 4, 8, 8)
+          }
         }
     }
 
     const unsubscribe = useSceneStore.subscribe(() => render())
 
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) redo()
+        else undo()
+      }
+    }
+
     resizeCanvas()
     window.addEventListener('resize', resizeCanvas)
+    window.addEventListener('keydown', handleKeyDown)
     return () => {
       window.removeEventListener('resize', resizeCanvas)
+      window.removeEventListener('keydown', handleKeyDown)
       unsubscribe()
     }
   }, [])
@@ -110,6 +176,20 @@ export function Canvas() {
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
 
+      if (tool === 'freedraw') {
+        const el = createElement({
+          type: 'freedraw',
+          x, y, width: 0, height: 0,
+          strokeColor: '#1e1e1e',
+          fillColor: 'transparent',
+          points: [{ x, y }],
+        })
+        useSceneStore.getState().addElement(el)
+        beforeElementRef.current = null
+        draggingRef.current = { id: el.id, startX: x, startY: y, mode: 'freedraw' }
+        return
+      }
+
     if (tool === 'rectangle' || tool === 'ellipse') {
       const el = createElement({
         type: tool,
@@ -118,17 +198,42 @@ export function Canvas() {
         fillColor: 'transparent',
       })
       useSceneStore.getState().addElement(el)
+      beforeElementRef.current = null
       draggingRef.current = { id: el.id, startX: x, startY: y, mode: 'draw' }
       return
     }
 
     if (tool === 'selection') {
+      const selectedId = useSceneStore.getState().selectedId
+      const selected = useSceneStore.getState().elements.find((el) => el.id === selectedId)
+
+      if (selected) {
+        const handle = getHandleAt(selected, x, y)
+        if (handle) {
+          beforeElementRef.current = { ...selected, points: selected.points ? [...selected.points] : undefined }
+          draggingRef.current = {
+            id: selected.id,
+            startX: x,
+            startY: y,
+            mode: 'resize',
+            handle,
+            origX: selected.x,
+            origY: selected.y,
+            origWidth: selected.width,
+            origHeight: selected.height,
+          }
+          return
+        }
+      }
+
       const hit = hitTest(x, y)
       if (hit) {
         useSceneStore.getState().setSelectedId(hit.id)
+        beforeElementRef.current = { ...hit, points: hit.points ? [...hit.points] : undefined }
         draggingRef.current = { id: hit.id, startX: x, startY: y, mode: 'move', origX: hit.x, origY: hit.y }
       } else {
         useSceneStore.getState().setSelectedId(null)
+        beforeElementRef.current = null
       }
     }
   }
@@ -155,11 +260,75 @@ export function Canvas() {
         x: drag.origX! + dx,
         y: drag.origY! + dy,
       })
+    } else if (drag.mode === 'resize' && drag.handle) {
+      const dx = x - drag.startX
+      const dy = y - drag.startY
+      let { origX: ox, origY: oy, origWidth: ow, origHeight: oh } = drag
+
+      let newX = ox!
+      let newY = oy!
+      let newWidth = ow!
+      let newHeight = oh!
+
+      if (drag.handle.includes('e')) newWidth = ow! + dx
+      if (drag.handle.includes('w')) {
+        newWidth = ow! - dx
+        newX = ox! + dx
+      }
+      if (drag.handle.includes('s')) newHeight = oh! + dy
+      if (drag.handle.includes('n')) {
+        newHeight = oh! - dy
+        newY = oy! + dy
+      }
+
+      if (newWidth < 0) {
+        newX += newWidth
+        newWidth = Math.abs(newWidth)
+      }
+      if (newHeight < 0) {
+        newY += newHeight
+        newHeight = Math.abs(newHeight)
+      }
+
+      useSceneStore.getState().updateElement(drag.id, {
+        x: newX,
+        y: newY,
+        width: newWidth,
+        height: newHeight,
+      })
+    } else if (drag.mode === 'freedraw') {
+      const el = useSceneStore.getState().elements.find((element) => element.id === drag.id)
+      if (!el?.points) return
+      const points = [...el.points, { x, y }]
+      const xs = points.map((point) => point.x)
+      const ys = points.map((point) => point.y)
+      useSceneStore.getState().updateElement(drag.id, {
+        points,
+        x: Math.min(...xs),
+        y: Math.min(...ys),
+        width: Math.max(...xs) - Math.min(...xs),
+        height: Math.max(...ys) - Math.min(...ys),
+      })
     }
   }
 
   function handlePointerUp() {
+    const drag = draggingRef.current
+    const before = beforeElementRef.current
+
+    if (drag) {
+      const after = useSceneStore.getState().elements.find((element) => element.id === drag.id)
+      if (drag.mode === 'draw' || drag.mode === 'freedraw') {
+        if (after) {
+          pushCommand(createCreateCommand(after))
+        }
+      } else if (before && after) {
+        pushCommand(createUpdateCommand(before, after))
+      }
+    }
+
     draggingRef.current = null
+    beforeElementRef.current = null
   }
 
   return (
