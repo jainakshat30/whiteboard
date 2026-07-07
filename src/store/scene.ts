@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { ydoc, yElements } from './yjs'
 import { Element } from '@/types/elements'
 
 type SceneState = {
@@ -13,18 +14,33 @@ type SceneState = {
 export const useSceneStore = create<SceneState>((set) => ({
   elements: [],
   selectedId: null,
-  addElement: (el) =>
-    set((state) => ({ elements: [...state.elements, el] })),
-  removeElement: (id) =>
+  addElement: (el) => {
+    ydoc.transact(() => {
+      yElements.set(el.id, el)
+    })
+  },
+  removeElement: (id) => {
+    ydoc.transact(() => {
+      yElements.delete(id)
+    })
+
     set((state) => ({
-      elements: state.elements.filter((el) => el.id !== id),
       selectedId: state.selectedId === id ? null : state.selectedId,
-    })),
-  updateElement: (id, patch) =>
-    set((state) => ({
-      elements: state.elements.map((el) =>
-        el.id === id ? { ...el, ...patch, version: el.version + 1 } : el
-      ),
-    })),
+    }))
+  },
+  updateElement: (id, patch) => {
+    ydoc.transact(() => {
+      const existing = yElements.get(id)
+      if (!existing) return
+      yElements.set(id, { ...existing, ...patch, version: existing.version + 1 })
+    })
+  },
   setSelectedId: (id) => set({ selectedId: id }),
 }))
+
+function syncElementsFromYjs() {
+  useSceneStore.setState({ elements: Array.from(yElements.values()) })
+}
+
+yElements.observe(syncElementsFromYjs)
+syncElementsFromYjs()

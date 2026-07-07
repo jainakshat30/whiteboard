@@ -2,9 +2,12 @@
 
 import { useEffect, useRef } from 'react'
 import { useSceneStore } from '@/store/scene'
+import { updateCursor } from '@/store/presence'
+import { getRemoteCursors } from '@/store/presence'
 import { useToolStore } from '@/store/tools'
 import { Element, createElement } from '@/types/elements'
-import { createCreateCommand, createUpdateCommand, pushCommand, redo, undo } from '@/store/history'
+import { redo, undo } from '../store/undo'
+import { awareness } from '@/store/yjs'
 
 export type HandlePosition = 'nw' | 'ne' | 'sw' | 'se'
 
@@ -43,7 +46,6 @@ export function Canvas() {
     origWidth?: number
     origHeight?: number
   } | null>(null)
-  const beforeElementRef = useRef<Element | null>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -136,6 +138,21 @@ export function Canvas() {
             ctx.strokeRect(hx - 4, hy - 4, 8, 8)
           }
         }
+
+        const cursors = getRemoteCursors()
+        for (const state of cursors) {
+          if (!state.cursor || !state.user) continue
+          const { x, y } = state.cursor
+          const { name, color } = state.user
+
+          ctx.fillStyle = color
+          ctx.beginPath()
+          ctx.arc(x, y, 4, 0, Math.PI * 2)
+          ctx.fill()
+
+          ctx.font = '12px sans-serif'
+          ctx.fillText(name, x + 8, y - 8)
+        }
     }
 
     const unsubscribe = useSceneStore.subscribe(() => render())
@@ -151,9 +168,11 @@ export function Canvas() {
     resizeCanvas()
     window.addEventListener('resize', resizeCanvas)
     window.addEventListener('keydown', handleKeyDown)
+    awareness.on('change', render)
     return () => {
       window.removeEventListener('resize', resizeCanvas)
       window.removeEventListener('keydown', handleKeyDown)
+      awareness.off('change', render)
       unsubscribe()
     }
   }, [])
@@ -185,7 +204,6 @@ export function Canvas() {
           points: [{ x, y }],
         })
         useSceneStore.getState().addElement(el)
-        beforeElementRef.current = null
         draggingRef.current = { id: el.id, startX: x, startY: y, mode: 'freedraw' }
         return
       }
@@ -198,7 +216,6 @@ export function Canvas() {
         fillColor: 'transparent',
       })
       useSceneStore.getState().addElement(el)
-      beforeElementRef.current = null
       draggingRef.current = { id: el.id, startX: x, startY: y, mode: 'draw' }
       return
     }
@@ -210,7 +227,6 @@ export function Canvas() {
       if (selected) {
         const handle = getHandleAt(selected, x, y)
         if (handle) {
-          beforeElementRef.current = { ...selected, points: selected.points ? [...selected.points] : undefined }
           draggingRef.current = {
             id: selected.id,
             startX: x,
@@ -229,22 +245,22 @@ export function Canvas() {
       const hit = hitTest(x, y)
       if (hit) {
         useSceneStore.getState().setSelectedId(hit.id)
-        beforeElementRef.current = { ...hit, points: hit.points ? [...hit.points] : undefined }
         draggingRef.current = { id: hit.id, startX: x, startY: y, mode: 'move', origX: hit.x, origY: hit.y }
       } else {
         useSceneStore.getState().setSelectedId(null)
-        beforeElementRef.current = null
       }
     }
   }
 
   function handlePointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
     const drag = draggingRef.current
-    if (!drag) return
-
     const rect = canvasRef.current!.getBoundingClientRect()
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
+
+    updateCursor(x, y)
+
+    if (!drag) return
 
     if (drag.mode === 'draw') {
       useSceneStore.getState().updateElement(drag.id, {
@@ -313,22 +329,7 @@ export function Canvas() {
   }
 
   function handlePointerUp() {
-    const drag = draggingRef.current
-    const before = beforeElementRef.current
-
-    if (drag) {
-      const after = useSceneStore.getState().elements.find((element) => element.id === drag.id)
-      if (drag.mode === 'draw' || drag.mode === 'freedraw') {
-        if (after) {
-          pushCommand(createCreateCommand(after))
-        }
-      } else if (before && after) {
-        pushCommand(createUpdateCommand(before, after))
-      }
-    }
-
     draggingRef.current = null
-    beforeElementRef.current = null
   }
 
   return (
@@ -337,6 +338,7 @@ export function Canvas() {
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerLeave={() => updateCursor(null, null)}
       style={{ width: '100vw', height: '100vh', display: 'block', touchAction: 'none' }}
     />
   )

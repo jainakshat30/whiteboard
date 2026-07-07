@@ -6,12 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "ws-server": "node server/index.js"
   },
   "dependencies": {
     "next": "16.2.10",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "ws": "^8.21.0",
+    "y-indexeddb": "^9.0.12",
+    "y-websocket": "^3.0.0",
+    "yjs": "^13.6.31",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
