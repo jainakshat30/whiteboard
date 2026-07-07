@@ -2,9 +2,12 @@
 
 import { useEffect, useRef } from 'react'
 import { useSceneStore } from '@/store/scene'
+import { updateCursor } from '@/store/presence'
+import { getRemoteCursors } from '@/store/presence'
 import { useToolStore } from '@/store/tools'
 import { Element, createElement } from '@/types/elements'
 import { redo, undo } from '../store/undo'
+import { awareness } from '@/store/yjs'
 
 export type HandlePosition = 'nw' | 'ne' | 'sw' | 'se'
 
@@ -135,6 +138,21 @@ export function Canvas() {
             ctx.strokeRect(hx - 4, hy - 4, 8, 8)
           }
         }
+
+        const cursors = getRemoteCursors()
+        for (const state of cursors) {
+          if (!state.cursor || !state.user) continue
+          const { x, y } = state.cursor
+          const { name, color } = state.user
+
+          ctx.fillStyle = color
+          ctx.beginPath()
+          ctx.arc(x, y, 4, 0, Math.PI * 2)
+          ctx.fill()
+
+          ctx.font = '12px sans-serif'
+          ctx.fillText(name, x + 8, y - 8)
+        }
     }
 
     const unsubscribe = useSceneStore.subscribe(() => render())
@@ -150,9 +168,11 @@ export function Canvas() {
     resizeCanvas()
     window.addEventListener('resize', resizeCanvas)
     window.addEventListener('keydown', handleKeyDown)
+    awareness.on('change', render)
     return () => {
       window.removeEventListener('resize', resizeCanvas)
       window.removeEventListener('keydown', handleKeyDown)
+      awareness.off('change', render)
       unsubscribe()
     }
   }, [])
@@ -234,11 +254,13 @@ export function Canvas() {
 
   function handlePointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
     const drag = draggingRef.current
-    if (!drag) return
-
     const rect = canvasRef.current!.getBoundingClientRect()
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
+
+    updateCursor(x, y)
+
+    if (!drag) return
 
     if (drag.mode === 'draw') {
       useSceneStore.getState().updateElement(drag.id, {
@@ -316,6 +338,7 @@ export function Canvas() {
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerLeave={() => updateCursor(null, null)}
       style={{ width: '100vw', height: '100vh', display: 'block', touchAction: 'none' }}
     />
   )
