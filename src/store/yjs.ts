@@ -1,16 +1,28 @@
 import * as Y from 'yjs'
-import { WebsocketProvider } from 'y-websocket'
+import { HocuspocusProvider } from '@hocuspocus/provider'
 import { Element } from '@/types/elements'
 
-export const ydoc = new Y.Doc()
-export const yElements = ydoc.getMap<Element>('elements')
+type BoardConnection = {
+  ydoc: Y.Doc
+  yElements: Y.Map<Element>
+  provider: HocuspocusProvider
+}
 
-const roomName = 'demo-room'
+const connections = new Map<string, BoardConnection>()
 
-export const provider = new WebsocketProvider(
-	'ws://localhost:1234',
-	roomName,
-	ydoc
-)
+export function getBoardConnection(boardId: string): BoardConnection {
+  const existing = connections.get(boardId)
+  if (existing) return existing
 
-export const awareness = provider.awareness
+  const ydoc = new Y.Doc()
+  const yElements = ydoc.getMap<Element>('elements')
+  const provider = new HocuspocusProvider({
+    url: 'ws://localhost:1234',
+    name: boardId,
+    document: ydoc,
+  })
+
+  const connection = { ydoc, yElements, provider }
+  connections.set(boardId, connection)
+  return connection
+}

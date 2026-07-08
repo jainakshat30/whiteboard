@@ -33,7 +33,7 @@ export function getHandleAt(el: Element, x: number, y: number): HandlePosition |
   return null
 }
 
-export function Canvas() {
+export function Canvas(boardId?: { boardId: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const draggingRef = useRef<{ 
     id: string
@@ -168,11 +168,11 @@ export function Canvas() {
     resizeCanvas()
     window.addEventListener('resize', resizeCanvas)
     window.addEventListener('keydown', handleKeyDown)
-    awareness.on('change', render)
+    awareness?.on('change', render)
     return () => {
       window.removeEventListener('resize', resizeCanvas)
       window.removeEventListener('keydown', handleKeyDown)
-      awareness.off('change', render)
+      awareness?.off('change', render)
       unsubscribe()
     }
   }, [])
