@@ -1,11 +1,6 @@
-import { Canvas } from '@/components/Canvas'
-import { Toolbar } from '@/components/Toolbar'
+import { redirect } from 'next/navigation'
 
 export default function Home() {
-  return (
-    <>
-      <Toolbar />
-      <Canvas />
-    </>
-  );
+  // Redirect to a default board
+  redirect('/board/default')
 }

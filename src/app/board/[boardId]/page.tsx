@@ -1,11 +1,13 @@
-import { Canvas } from '@/components/Canvas'
-import { Toolbar } from '@/components/Toolbar'
+import { Canvas } from "@/components/Canvas"
+import { Toolbar } from "@/components/Toolbar"
 
-export default function BoardPage({ params }: { params: { boardId: string } }) {
+export default async function BoardPage({ params, }: { params: Promise<{ boardId: string }>}) {
+  const { boardId } = await params
+
   return (
     <>
       <Toolbar />
-      <Canvas boardId={params.boardId} />
+      <Canvas boardId={boardId} />
     </>
   )
 }
