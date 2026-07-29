@@ -1,4 +1,4 @@
-export type ElementType = 'line' | 'rectangle' | 'circle' | 'text' | 'ellipse' | 'freedraw';
+export type ElementType = 'line' | 'rectangle' | 'circle' | 'text' | 'ellipse' | 'freedraw' | 'diamond';
 
 export type Element = {
     id: string
