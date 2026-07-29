@@ -10,9 +10,11 @@ import {
   initializePresence,
   updateCursor,
   getRemoteCursors,
+  updateIsDrawing,
 } from "@/store/presence";
 import { CANVAS_FONT_FAMILY } from "@/config/font";
 import { useThemeStore, getAdaptiveStrokeColor } from "@/store/theme";
+import { UserNameModal } from "@/components/UserNameModal";
 
 export type HandlePosition = "nw" | "ne" | "sw" | "se";
 
@@ -177,14 +179,17 @@ export function Canvas({ boardId }: CanvasProps) {
         if (!state.cursor || !state.user) continue;
         const { x, y } = state.cursor;
         const { name, color } = state.user;
+        const isDrawing = Boolean(state.isDrawing);
 
         ctx.fillStyle = color;
         ctx.beginPath();
         ctx.arc(x, y, 5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.font = `bold 14px ${CANVAS_FONT_FAMILY}`;
+
+        ctx.font = `bold 13px ${CANVAS_FONT_FAMILY}`;
         ctx.fillStyle = color;
-        ctx.fillText(name, x + 8, y - 8);
+        const labelText = isDrawing ? `${name} ✏️ Drawing...` : name;
+        ctx.fillText(labelText, x + 8, y - 8);
       }
     }
 
@@ -244,6 +249,7 @@ export function Canvas({ boardId }: CanvasProps) {
     const defaultStroke = theme === "dark" ? "#f3f4f6" : "#1e1e1e";
 
     if (tool === "freedraw") {
+      updateIsDrawing(boardId, true);
       const el = createElement({
         type: "freedraw",
         x,
@@ -265,6 +271,7 @@ export function Canvas({ boardId }: CanvasProps) {
     }
 
     if (tool === "rectangle" || tool === "ellipse") {
+      updateIsDrawing(boardId, true);
       const el = createElement({
         type: tool,
         x,
@@ -288,6 +295,7 @@ export function Canvas({ boardId }: CanvasProps) {
       if (selected) {
         const handle = getHandleAt(selected, x, y);
         if (handle) {
+          updateIsDrawing(boardId, true);
           draggingRef.current = {
             id: selected.id,
             startX: x,
@@ -305,6 +313,7 @@ export function Canvas({ boardId }: CanvasProps) {
 
       const hit = hitTest(x, y);
       if (hit) {
+        updateIsDrawing(boardId, true);
         useSceneStore.getState().setSelectedId(hit.id);
         draggingRef.current = {
           id: hit.id,
@@ -399,24 +408,29 @@ export function Canvas({ boardId }: CanvasProps) {
   }
 
   function handlePointerUp() {
+    updateIsDrawing(boardId, false);
     draggingRef.current = null;
   }
 
   return (
-    <canvas
-      ref={canvasRef}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={() => {
-        updateCursor(boardId, null, null);
-      }}
-      style={{
-        width: "100vw",
-        height: "100vh",
-        display: "block",
-        touchAction: "none",
-      }}
-    />
+    <>
+      <UserNameModal boardId={boardId} />
+      <canvas
+        ref={canvasRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={() => {
+          updateIsDrawing(boardId, false);
+          updateCursor(boardId, null, null);
+        }}
+        style={{
+          width: "100vw",
+          height: "100vh",
+          display: "block",
+          touchAction: "none",
+        }}
+      />
+    </>
   );
 }
