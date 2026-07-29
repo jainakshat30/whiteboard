@@ -6,11 +6,11 @@ import { useToolStore } from "@/store/tools";
 import { Element, createElement } from "@/types/elements";
 import { redo, undo } from "../store/undo";
 import { getBoardConnection } from "@/store/yjs";
-// import {
-//   initializePresence,
-//   updateCursor,
-//   getRemoteCursors,
-// } from "@/store/presence";
+import {
+  initializePresence,
+  updateCursor,
+  getRemoteCursors,
+} from "@/store/presence";
 
 export type HandlePosition = "nw" | "ne" | "sw" | "se";
 
@@ -61,11 +61,10 @@ export function Canvas({ boardId }: CanvasProps) {
   } | null>(null);
 
   useEffect(() => {
-
-    useSceneStore.getState().initBoard(boardId)
-    const { provider } = getBoardConnection(boardId)
-    // initializePresence(boardId)
-    // const awareness = provider.awareness
+    useSceneStore.getState().initBoard(boardId);
+    const { provider } = getBoardConnection(boardId);
+    initializePresence(boardId);
+    const awareness = provider.awareness;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -78,14 +77,10 @@ export function Canvas({ boardId }: CanvasProps) {
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
 
-      // Internal resolution = CSS size * device pixel ratio
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
 
-      // Scale the context so drawing commands use CSS pixel units,
-      // not raw device pixels
       ctx.scale(dpr, dpr);
-
       render();
     }
 
@@ -166,20 +161,21 @@ export function Canvas({ boardId }: CanvasProps) {
         }
       }
 
-      // const cursors = getRemoteCursors(boardId);
-      // for (const state of cursors) {
-      //   if (!state.cursor || !state.user) continue;
-      //   const { x, y } = state.cursor;
-      //   const { name, color } = state.user;
+      const cursors = getRemoteCursors(boardId);
+      for (const state of cursors) {
+        if (!state.cursor || !state.user) continue;
+        const { x, y } = state.cursor;
+        const { name, color } = state.user;
 
-      //   ctx.fillStyle = color;
-      //   ctx.beginPath();
-      //   ctx.arc(x, y, 4, 0, Math.PI * 2);
-      //   ctx.fill();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.fill();
 
-      //   ctx.font = "12px sans-serif";
-      //   ctx.fillText(name, x + 8, y - 8);
-      // }
+        ctx.font = "bold 12px sans-serif";
+        ctx.fillStyle = color;
+        ctx.fillText(name, x + 8, y - 8);
+      }
     }
 
     const unsubscribe = useSceneStore.subscribe(() => render());
@@ -189,6 +185,12 @@ export function Canvas({ boardId }: CanvasProps) {
         e.preventDefault();
         if (e.shiftKey) redo(boardId);
         else undo(boardId);
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        const selectedId = useSceneStore.getState().selectedId;
+        if (selectedId) {
+          e.preventDefault();
+          useSceneStore.getState().removeElement(selectedId);
+        }
       }
     }
 
@@ -196,18 +198,17 @@ export function Canvas({ boardId }: CanvasProps) {
     window.addEventListener("resize", resizeCanvas);
     window.addEventListener("keydown", handleKeyDown);
     
-    // awareness?.on("change", render);
+    awareness?.on("change", render);
     return () => {
       window.removeEventListener("resize", resizeCanvas);
       window.removeEventListener("keydown", handleKeyDown);
-      // awareness?.off("change", render);
+      awareness?.off("change", render);
       unsubscribe();
     };
   }, [boardId]);
 
   function hitTest(x: number, y: number): Element | null {
     const elements = useSceneStore.getState().elements;
-    // Check in reverse order (top to bottom)
     for (let i = elements.length - 1; i >= 0; i--) {
       const el = elements[i];
       if (
@@ -311,7 +312,7 @@ export function Canvas({ boardId }: CanvasProps) {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // updateCursor(boardId,x, y);
+    updateCursor(boardId, x, y);
 
     if (!drag) return;
 
@@ -394,7 +395,7 @@ export function Canvas({ boardId }: CanvasProps) {
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={() => {
-        // updateCursor(boardId, null, null)
+        updateCursor(boardId, null, null);
       }}
       style={{
         width: "100vw",
