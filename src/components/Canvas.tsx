@@ -12,6 +12,7 @@ import {
   getRemoteCursors,
 } from "@/store/presence";
 import { CANVAS_FONT_FAMILY } from "@/config/font";
+import { useThemeStore, getAdaptiveStrokeColor } from "@/store/theme";
 
 export type HandlePosition = "nw" | "ne" | "sw" | "se";
 
@@ -62,6 +63,7 @@ export function Canvas({ boardId }: CanvasProps) {
   } | null>(null);
 
   useEffect(() => {
+    useThemeStore.getState().initTheme();
     useSceneStore.getState().initBoard(boardId);
     const { provider } = getBoardConnection(boardId);
     initializePresence(boardId);
@@ -86,13 +88,15 @@ export function Canvas({ boardId }: CanvasProps) {
     }
 
     function drawElement(ctx: CanvasRenderingContext2D, el: Element) {
-      ctx.strokeStyle = el.strokeColor;
+      const theme = useThemeStore.getState().theme;
+      const stroke = getAdaptiveStrokeColor(el.strokeColor, theme);
+      ctx.strokeStyle = stroke;
       ctx.fillStyle = el.fillColor;
       ctx.lineWidth = 2;
 
       if (el.type === "freedraw" && el.points) {
         ctx.beginPath();
-        ctx.strokeStyle = el.strokeColor;
+        ctx.strokeStyle = stroke;
         ctx.lineWidth = 2;
         ctx.lineJoin = "round";
         ctx.lineCap = "round";
@@ -126,7 +130,12 @@ export function Canvas({ boardId }: CanvasProps) {
     function render() {
       if (!ctx || !canvas) return;
       const dpr = window.devicePixelRatio || 1;
-      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      const theme = useThemeStore.getState().theme;
+      const isDark = theme === "dark";
+
+      // Fill theme background
+      ctx.fillStyle = isDark ? "#121212" : "#ffffff";
+      ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
       const elements = useSceneStore.getState().elements;
       for (const el of elements) {
@@ -136,7 +145,8 @@ export function Canvas({ boardId }: CanvasProps) {
       const selectedId = useSceneStore.getState().selectedId;
       const selected = elements.find((el) => el.id === selectedId);
       if (selected) {
-        ctx.strokeStyle = "#4f46e5";
+        const handleColor = isDark ? "#a5b4fc" : "#4f46e5";
+        ctx.strokeStyle = handleColor;
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 4]);
         ctx.strokeRect(
@@ -147,8 +157,8 @@ export function Canvas({ boardId }: CanvasProps) {
         );
         ctx.setLineDash([]);
 
-        ctx.fillStyle = "white";
-        ctx.strokeStyle = "#4f46e5";
+        ctx.fillStyle = isDark ? "#1e1b4b" : "#ffffff";
+        ctx.strokeStyle = handleColor;
         ctx.lineWidth = 1;
         const positions = [
           [selected.x, selected.y],
@@ -178,7 +188,8 @@ export function Canvas({ boardId }: CanvasProps) {
       }
     }
 
-    const unsubscribe = useSceneStore.subscribe(() => render());
+    const unsubscribeScene = useSceneStore.subscribe(() => render());
+    const unsubscribeTheme = useThemeStore.subscribe(() => render());
 
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
@@ -203,7 +214,8 @@ export function Canvas({ boardId }: CanvasProps) {
       window.removeEventListener("resize", resizeCanvas);
       window.removeEventListener("keydown", handleKeyDown);
       awareness?.off("change", render);
-      unsubscribe();
+      unsubscribeScene();
+      unsubscribeTheme();
     };
   }, [boardId]);
 
@@ -228,6 +240,8 @@ export function Canvas({ boardId }: CanvasProps) {
     const rect = canvasRef.current!.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    const theme = useThemeStore.getState().theme;
+    const defaultStroke = theme === "dark" ? "#f3f4f6" : "#1e1e1e";
 
     if (tool === "freedraw") {
       const el = createElement({
@@ -236,7 +250,7 @@ export function Canvas({ boardId }: CanvasProps) {
         y,
         width: 0,
         height: 0,
-        strokeColor: "#1e1e1e",
+        strokeColor: defaultStroke,
         fillColor: "transparent",
         points: [{ x, y }],
       });
@@ -257,7 +271,7 @@ export function Canvas({ boardId }: CanvasProps) {
         y,
         width: 0,
         height: 0,
-        strokeColor: "#1e1e1e",
+        strokeColor: defaultStroke,
         fillColor: "transparent",
       });
       useSceneStore.getState().addElement(el);

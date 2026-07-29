@@ -17,7 +17,7 @@ export default function RootLayout({
       lang="en"
       className={`${primaryFont.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 transition-colors">{children}</body>
     </html>
   );
 }
