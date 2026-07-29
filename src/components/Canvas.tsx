@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useSceneStore } from "@/store/scene";
 import { useToolStore } from "@/store/tools";
 import { Element, createElement } from "@/types/elements";
+import rough from "roughjs";
 import { redo, undo } from "../store/undo";
 import { getBoardConnection } from "@/store/yjs";
 import {
@@ -102,43 +103,54 @@ export function Canvas({ boardId }: CanvasProps) {
       render();
     }
 
+    const rc = rough.canvas(canvas);
+
     function drawElement(ctx: CanvasRenderingContext2D, el: Element) {
       const theme = useThemeStore.getState().theme;
       const stroke = getAdaptiveStrokeColor(el.strokeColor, theme);
-      ctx.strokeStyle = stroke;
-      ctx.fillStyle = el.fillColor;
-      ctx.lineWidth = 2;
+      
+      // Use the element ID to generate a consistent seed, stopping the flickering on re-render.
+      const seed = parseInt(el.id.replace(/-/g, '').substring(0, 8), 16) || 1;
 
-      if (el.type === "freedraw" && el.points) {
-        ctx.beginPath();
-        ctx.strokeStyle = stroke;
-        ctx.lineWidth = 2;
-        ctx.lineJoin = "round";
-        ctx.lineCap = "round";
-        el.points.forEach((p, i) => {
-          if (i === 0) ctx.moveTo(p.x, p.y);
-          else ctx.lineTo(p.x, p.y);
-        });
-        ctx.stroke();
+      const roughOptions = {
+        stroke,
+        strokeWidth: 2,
+        roughness: 1.2,
+        seed,
+        fill: el.fillColor !== "transparent" ? el.fillColor : undefined,
+        fillStyle: "hachure",
+        hachureAngle: 60,
+        hachureGap: 4,
+      };
+
+      if (el.type === "freedraw" && el.points && el.points.length > 0) {
+        const points: [number, number][] = el.points.map(p => [p.x, p.y]);
+        if (points.length > 1) {
+          rc.curve(points, {
+            ...roughOptions,
+            strokeWidth: 2.5,
+            roughness: 1,
+            fill: undefined,
+          });
+        } else {
+          ctx.fillStyle = stroke;
+          ctx.beginPath();
+          ctx.arc(points[0][0], points[0][1], 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
         return;
       }
 
       if (el.type === "rectangle") {
-        ctx.fillRect(el.x, el.y, el.width, el.height);
-        ctx.strokeRect(el.x, el.y, el.width, el.height);
+        rc.rectangle(el.x, el.y, el.width, el.height, roughOptions);
       } else if (el.type === "ellipse") {
-        ctx.beginPath();
-        ctx.ellipse(
+        rc.ellipse(
           el.x + el.width / 2,
           el.y + el.height / 2,
-          Math.abs(el.width / 2),
-          Math.abs(el.height / 2),
-          0,
-          0,
-          Math.PI * 2,
+          Math.abs(el.width),
+          Math.abs(el.height),
+          roughOptions
         );
-        ctx.fill();
-        ctx.stroke();
       }
     }
 
