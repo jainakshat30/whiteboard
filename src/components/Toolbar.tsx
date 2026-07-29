@@ -66,6 +66,38 @@ const tools: ToolConfig[] = [
       </svg>
     ),
   },
+  {
+    id: 'line',
+    label: 'Line',
+    shortcut: '5',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <line x1="5" y1="19" x2="19" y2="5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: 'diamond',
+    label: 'Diamond',
+    shortcut: '6',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinejoin="round">
+        <polygon points="12 3 21 12 12 21 3 12" />
+      </svg>
+    ),
+  },
+  {
+    id: 'eraser',
+    label: 'Eraser',
+    shortcut: '7',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
+        <path d="M22 21H7" />
+        <path d="m5 11 9 9" />
+      </svg>
+    ),
+  },
 ]
 
 export function Toolbar() {
@@ -76,6 +108,22 @@ export function Toolbar() {
   const theme = useThemeStore((s) => s.theme)
   const toggleTheme = useThemeStore((s) => s.toggleTheme)
   const [users, setUsers] = useState<UserPresence[]>([])
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      
+      const key = e.key.toLowerCase()
+      const tool = tools.find((t) => t.shortcut.toLowerCase() === key)
+      if (tool) {
+        e.preventDefault()
+        setTool(tool.id)
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [setTool])
 
   useEffect(() => {
     if (!boardId) return
@@ -119,6 +167,9 @@ export function Toolbar() {
             }`}
           >
             {t.icon}
+            <span className="absolute bottom-0.5 right-1 text-[9px] font-bold opacity-60 select-none">
+              {t.shortcut}
+            </span>
           </button>
         ))}
       </div>

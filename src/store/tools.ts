@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type Tool = 'hand' | 'selection' | 'rectangle' | 'ellipse' | 'freedraw'
+export type Tool = 'hand' | 'selection' | 'rectangle' | 'ellipse' | 'freedraw' | 'line' | 'diamond' | 'eraser'
 
 type ToolState = {
   activeTool: Tool

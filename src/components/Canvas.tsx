@@ -62,7 +62,7 @@ export function Canvas({ boardId }: CanvasProps) {
     id: string;
     startX: number;
     startY: number;
-    mode: "draw" | "move" | "resize" | "freedraw";
+    mode: "draw" | "move" | "resize" | "freedraw" | "erase";
     handle?: HandlePosition;
     origX?: number;
     origY?: number;
@@ -151,6 +151,20 @@ export function Canvas({ boardId }: CanvasProps) {
           Math.abs(el.height),
           roughOptions
         );
+      } else if (el.type === "diamond") {
+        const midX = el.x + el.width / 2;
+        const midY = el.y + el.height / 2;
+        rc.polygon([
+          [midX, el.y],
+          [el.x + el.width, midY],
+          [midX, el.y + el.height],
+          [el.x, midY]
+        ], roughOptions);
+      } else if (el.type === "line") {
+        rc.line(el.x, el.y, el.x + el.width, el.y + el.height, {
+          ...roughOptions,
+          fill: undefined
+        });
       }
     }
 
@@ -303,6 +317,8 @@ export function Canvas({ boardId }: CanvasProps) {
       canvasRef.current.style.cursor = isPanningRef.current ? "grabbing" : "grab";
     } else if (activeTool === "freedraw") {
       canvasRef.current.style.cursor = "crosshair";
+    } else if (activeTool === "eraser") {
+      canvasRef.current.style.cursor = "crosshair";
     } else {
       canvasRef.current.style.cursor = "default";
     }
@@ -312,12 +328,12 @@ export function Canvas({ boardId }: CanvasProps) {
     const elements = useSceneStore.getState().elements;
     for (let i = elements.length - 1; i >= 0; i--) {
       const el = elements[i];
-      if (
-        x >= el.x &&
-        x <= el.x + el.width &&
-        y >= el.y &&
-        y <= el.y + el.height
-      ) {
+      const minX = Math.min(el.x, el.x + el.width);
+      const maxX = Math.max(el.x, el.x + el.width);
+      const minY = Math.min(el.y, el.y + el.height);
+      const maxY = Math.max(el.y, el.y + el.height);
+
+      if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
         return el;
       }
     }
@@ -369,16 +385,25 @@ export function Canvas({ boardId }: CanvasProps) {
       return;
     }
 
-    if (tool === "rectangle" || tool === "ellipse") {
+    if (tool === "eraser") {
+      const hit = hitTest(x, y);
+      if (hit) {
+        useSceneStore.getState().removeElement(hit.id);
+      }
+      draggingRef.current = { id: "", startX: x, startY: y, mode: "erase" };
+      return;
+    }
+
+    if (tool === "rectangle" || tool === "ellipse" || tool === "diamond" || tool === "line") {
       updateIsDrawing(boardId, true);
       const el = createElement({
-        type: tool,
+        type: tool as any,
         x,
         y,
         width: 0,
         height: 0,
         strokeColor: defaultStroke,
-        fillColor: "transparent",
+        fillColor: tool === "line" ? "transparent" : "transparent",
       });
       useSceneStore.getState().addElement(el);
       draggingRef.current = { id: el.id, startX: x, startY: y, mode: "draw" };
@@ -448,12 +473,20 @@ export function Canvas({ boardId }: CanvasProps) {
     if (!drag) return;
 
     if (drag.mode === "draw") {
-      useSceneStore.getState().updateElement(drag.id, {
-        x: Math.min(drag.startX, x),
-        y: Math.min(drag.startY, y),
-        width: Math.abs(x - drag.startX),
-        height: Math.abs(y - drag.startY),
-      });
+      const el = useSceneStore.getState().elements.find(e => e.id === drag.id);
+      if (el?.type === "line") {
+        useSceneStore.getState().updateElement(drag.id, {
+          width: x - drag.startX,
+          height: y - drag.startY,
+        });
+      } else {
+        useSceneStore.getState().updateElement(drag.id, {
+          x: Math.min(drag.startX, x),
+          y: Math.min(drag.startY, y),
+          width: Math.abs(x - drag.startX),
+          height: Math.abs(y - drag.startY),
+        });
+      }
     } else if (drag.mode === "move") {
       const dx = x - drag.startX;
       const dy = y - drag.startY;
@@ -512,6 +545,11 @@ export function Canvas({ boardId }: CanvasProps) {
         width: Math.max(...xs) - Math.min(...xs),
         height: Math.max(...ys) - Math.min(...ys),
       });
+    } else if (drag.mode === "erase") {
+      const hit = hitTest(x, y);
+      if (hit) {
+        useSceneStore.getState().removeElement(hit.id);
+      }
     }
   }
 
