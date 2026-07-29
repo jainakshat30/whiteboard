@@ -11,6 +11,7 @@ import {
   updateCursor,
   getRemoteCursors,
 } from "@/store/presence";
+import { CANVAS_FONT_FAMILY } from "@/config/font";
 
 export type HandlePosition = "nw" | "ne" | "sw" | "se";
 
@@ -171,8 +172,7 @@ export function Canvas({ boardId }: CanvasProps) {
         ctx.beginPath();
         ctx.arc(x, y, 5, 0, Math.PI * 2);
         ctx.fill();
-
-        ctx.font = "bold 12px sans-serif";
+        ctx.font = `bold 14px ${CANVAS_FONT_FAMILY}`;
         ctx.fillStyle = color;
         ctx.fillText(name, x + 8, y - 8);
       }
