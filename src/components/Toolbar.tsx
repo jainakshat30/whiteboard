@@ -8,11 +8,64 @@ import { useThemeStore } from '@/store/theme'
 import { useSceneStore } from '@/store/scene'
 import { getOnlineUsers, UserPresence } from '@/store/presence'
 
-const tools: { id: Tool; label: string }[] = [
-  { id: 'selection', label: 'Select' },
-  { id: 'rectangle', label: 'Rectangle' },
-  { id: 'ellipse', label: 'Ellipse' },
-  { id: 'freedraw', label: 'Pen' },
+type ToolConfig = {
+  id: Tool
+  label: string
+  shortcut: string
+  icon: React.ReactNode
+}
+
+const tools: ToolConfig[] = [
+  {
+    id: 'hand',
+    label: 'Hand (Pan)',
+    shortcut: 'H',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6V6a1.5 1.5 0 013 0m0 0V4.5a1.5 1.5 0 113 0m-3 0V12m3-7.5V6a1.5 1.5 0 013 0m0 0v6a6 6 0 01-6 6H9.5a6 6 0 01-6-6v-1.5a1.5 1.5 0 013 0V11.5" />
+      </svg>
+    ),
+  },
+  {
+    id: 'selection',
+    label: 'Selection',
+    shortcut: '1',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'rectangle',
+    label: 'Rectangle',
+    shortcut: '2',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <rect x="4" y="4" width="16" height="16" rx="2" />
+      </svg>
+    ),
+  },
+  {
+    id: 'ellipse',
+    label: 'Ellipse',
+    shortcut: '3',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <circle cx="12" cy="12" r="8" />
+      </svg>
+    ),
+  },
+  {
+    id: 'freedraw',
+    label: 'Pen',
+    shortcut: '4',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+      </svg>
+    ),
+  },
 ]
 
 export function Toolbar() {
@@ -42,47 +95,48 @@ export function Toolbar() {
   }, [boardId])
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 rounded-xl bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xs p-2 shadow-lg border border-neutral-200 dark:border-neutral-800 text-neutral-800 dark:text-neutral-100 transition-colors">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 rounded-2xl bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md p-1.5 shadow-xl border border-neutral-200/80 dark:border-neutral-800 text-neutral-800 dark:text-neutral-100 transition-all">
       <Link
         href="/"
-        className="flex items-center gap-1 text-xs font-semibold text-neutral-600 dark:text-neutral-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition"
+        className="flex items-center gap-1 text-xs font-semibold text-neutral-600 dark:text-neutral-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition"
         title="Back to Dashboard"
       >
         &larr; Dashboard
       </Link>
 
-      <div className="h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
+      <div className="h-6 w-px bg-neutral-200 dark:bg-neutral-800 mx-0.5" />
 
       <div className="flex gap-1">
-        {tools.map((tool) => (
+        {tools.map((t) => (
           <button
-            key={tool.id}
-            onClick={() => setTool(tool.id)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition cursor-pointer ${
-              activeTool === tool.id
-                ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-xs'
-                : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+            key={t.id}
+            onClick={() => setTool(t.id)}
+            title={`${t.label} (${t.shortcut})`}
+            className={`relative flex items-center justify-center w-9 h-9 rounded-xl transition cursor-pointer ${
+              activeTool === t.id
+                ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/80 shadow-xs'
+                : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 border border-transparent'
             }`}
           >
-            {tool.label}
+            {t.icon}
           </button>
         ))}
       </div>
 
-      <div className="h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
+      <div className="h-6 w-px bg-neutral-200 dark:bg-neutral-800 mx-0.5" />
 
       <button
         onClick={toggleTheme}
-        className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-300 transition cursor-pointer text-xs flex items-center gap-1"
+        className="flex items-center justify-center px-2.5 h-9 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-300 transition cursor-pointer text-xs gap-1"
         title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
       >
-        {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
+        {theme === 'light' ? '🌙' : '☀️'}
       </button>
 
       {users.length > 0 && (
         <>
-          <div className="h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
-          <div className="flex items-center gap-1.5">
+          <div className="h-6 w-px bg-neutral-200 dark:bg-neutral-800 mx-0.5" />
+          <div className="flex items-center gap-1.5 px-1">
             {users.map((u) => (
               <div
                 key={u.clientId}
@@ -101,7 +155,7 @@ export function Toolbar() {
         </>
       )}
 
-      <div className="h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
+      <div className="h-6 w-px bg-neutral-200 dark:bg-neutral-800 mx-0.5" />
 
       <div className="flex items-center gap-1.5 px-2 text-xs font-medium">
         <span
@@ -113,7 +167,7 @@ export function Toolbar() {
               : 'bg-red-500'
           }`}
         />
-        <span className="text-neutral-500 dark:text-neutral-400 capitalize">{status}</span>
+        <span className="text-neutral-500 dark:text-neutral-400 capitalize hidden sm:inline">{status}</span>
       </div>
     </div>
   )

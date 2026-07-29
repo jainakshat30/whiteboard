@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type Tool = 'selection' | 'rectangle' | 'ellipse' | 'freedraw'
+export type Tool = 'hand' | 'selection' | 'rectangle' | 'ellipse' | 'freedraw'
 
 type ToolState = {
   activeTool: Tool
@@ -8,6 +8,6 @@ type ToolState = {
 }
 
 export const useToolStore = create<ToolState>((set) => ({
-  activeTool: 'rectangle',
+  activeTool: 'selection',
   setTool: (tool) => set({ activeTool: tool }),
 }))

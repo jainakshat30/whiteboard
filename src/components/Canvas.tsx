@@ -14,6 +14,7 @@ import {
 } from "@/store/presence";
 import { CANVAS_FONT_FAMILY } from "@/config/font";
 import { useThemeStore, getAdaptiveStrokeColor } from "@/store/theme";
+import { useViewportStore } from "@/store/viewport";
 import { UserNameModal } from "@/components/UserNameModal";
 
 export type HandlePosition = "nw" | "ne" | "sw" | "se";
@@ -52,6 +53,10 @@ type CanvasProps = {
 
 export function Canvas({ boardId }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isPanningRef = useRef<boolean>(false);
+  const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const isSpacePressedRef = useRef<boolean>(false);
+
   const draggingRef = useRef<{
     id: string;
     startX: number;
@@ -63,6 +68,14 @@ export function Canvas({ boardId }: CanvasProps) {
     origWidth?: number;
     origHeight?: number;
   } | null>(null);
+
+  function screenToWorld(sx: number, sy: number) {
+    const { zoom, panX, panY } = useViewportStore.getState();
+    return {
+      x: (sx - panX) / zoom,
+      y: (sy - panY) / zoom,
+    };
+  }
 
   useEffect(() => {
     useThemeStore.getState().initTheme();
@@ -134,10 +147,16 @@ export function Canvas({ boardId }: CanvasProps) {
       const dpr = window.devicePixelRatio || 1;
       const theme = useThemeStore.getState().theme;
       const isDark = theme === "dark";
+      const { zoom, panX, panY } = useViewportStore.getState();
 
-      // Fill theme background
+      // Clear & fill theme background
       ctx.fillStyle = isDark ? "#121212" : "#ffffff";
       ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+
+      // Save context state & apply viewport pan translation + zoom scale
+      ctx.save();
+      ctx.translate(panX, panY);
+      ctx.scale(zoom, zoom);
 
       const elements = useSceneStore.getState().elements;
       for (const el of elements) {
@@ -149,8 +168,8 @@ export function Canvas({ boardId }: CanvasProps) {
       if (selected) {
         const handleColor = isDark ? "#a5b4fc" : "#4f46e5";
         ctx.strokeStyle = handleColor;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1 / zoom;
+        ctx.setLineDash([4 / zoom, 4 / zoom]);
         ctx.strokeRect(
           selected.x - 4,
           selected.y - 4,
@@ -161,7 +180,7 @@ export function Canvas({ boardId }: CanvasProps) {
 
         ctx.fillStyle = isDark ? "#1e1b4b" : "#ffffff";
         ctx.strokeStyle = handleColor;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1 / zoom;
         const positions = [
           [selected.x, selected.y],
           [selected.x + selected.width, selected.y],
@@ -169,8 +188,8 @@ export function Canvas({ boardId }: CanvasProps) {
           [selected.x + selected.width, selected.y + selected.height],
         ];
         for (const [hx, hy] of positions) {
-          ctx.fillRect(hx - 4, hy - 4, 8, 8);
-          ctx.strokeRect(hx - 4, hy - 4, 8, 8);
+          ctx.fillRect(hx - 4, hy - 4, 8 / zoom, 8 / zoom);
+          ctx.strokeRect(hx - 4, hy - 4, 8 / zoom, 8 / zoom);
         }
       }
 
@@ -183,20 +202,45 @@ export function Canvas({ boardId }: CanvasProps) {
 
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.arc(x, y, 5 / zoom, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.font = `bold 13px ${CANVAS_FONT_FAMILY}`;
+        ctx.font = `bold ${13 / zoom}px ${CANVAS_FONT_FAMILY}`;
         ctx.fillStyle = color;
         const labelText = isDrawing ? `${name} ✏️ Drawing...` : name;
-        ctx.fillText(labelText, x + 8, y - 8);
+        ctx.fillText(labelText, x + 8 / zoom, y - 8 / zoom);
       }
+
+      ctx.restore();
+    }
+
+    function handleWheel(e: WheelEvent) {
+      e.preventDefault();
+      const rect = canvas!.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const { zoom, panX, panY, setZoom, setPan } = useViewportStore.getState();
+      const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
+      const newZoom = Math.min(Math.max(zoom * zoomFactor, 0.1), 5.0);
+
+      const newPanX = mouseX - (mouseX - panX) * (newZoom / zoom);
+      const newPanY = mouseY - (mouseY - panY) * (newZoom / zoom);
+
+      setZoom(newZoom);
+      setPan({ x: newPanX, y: newPanY });
     }
 
     const unsubscribeScene = useSceneStore.subscribe(() => render());
     const unsubscribeTheme = useThemeStore.subscribe(() => render());
+    const unsubscribeViewport = useViewportStore.subscribe(() => render());
 
     function handleKeyDown(e: KeyboardEvent) {
+      if (e.code === "Space" && !isSpacePressedRef.current && e.target === document.body) {
+        isSpacePressedRef.current = true;
+        if (canvasRef.current) canvasRef.current.style.cursor = "grab";
+      }
+
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
         e.preventDefault();
         if (e.shiftKey) redo(boardId);
@@ -210,19 +254,47 @@ export function Canvas({ boardId }: CanvasProps) {
       }
     }
 
+    function handleKeyUp(e: KeyboardEvent) {
+      if (e.code === "Space") {
+        isSpacePressedRef.current = false;
+        const activeTool = useToolStore.getState().activeTool;
+        if (canvasRef.current) {
+          canvasRef.current.style.cursor = activeTool === "hand" ? "grab" : "default";
+        }
+      }
+    }
+
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
     window.addEventListener("keydown", handleKeyDown);
-    
+    window.addEventListener("keyup", handleKeyUp);
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+
     awareness?.on("change", render);
     return () => {
       window.removeEventListener("resize", resizeCanvas);
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      canvas.removeEventListener("wheel", handleWheel);
       awareness?.off("change", render);
       unsubscribeScene();
       unsubscribeTheme();
+      unsubscribeViewport();
     };
   }, [boardId]);
+
+  // Sync cursor style with active tool
+  const activeTool = useToolStore((s) => s.activeTool);
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    if (activeTool === "hand" || isSpacePressedRef.current) {
+      canvasRef.current.style.cursor = isPanningRef.current ? "grabbing" : "grab";
+    } else if (activeTool === "freedraw") {
+      canvasRef.current.style.cursor = "crosshair";
+    } else {
+      canvasRef.current.style.cursor = "default";
+    }
+  }, [activeTool]);
 
   function hitTest(x: number, y: number): Element | null {
     const elements = useSceneStore.getState().elements;
@@ -242,9 +314,24 @@ export function Canvas({ boardId }: CanvasProps) {
 
   function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     const tool = useToolStore.getState().activeTool;
+    const { panX, panY } = useViewportStore.getState();
+
+    // Hand tool, Middle click, or Spacebar drag -> start panning
+    if (tool === "hand" || e.button === 1 || isSpacePressedRef.current) {
+      isPanningRef.current = true;
+      panStartRef.current = {
+        x: e.clientX - panX,
+        y: e.clientY - panY,
+      };
+      if (canvasRef.current) canvasRef.current.style.cursor = "grabbing";
+      return;
+    }
+
     const rect = canvasRef.current!.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+    const { x, y } = screenToWorld(sx, sy);
+
     const theme = useThemeStore.getState().theme;
     const defaultStroke = theme === "dark" ? "#f3f4f6" : "#1e1e1e";
 
@@ -330,13 +417,22 @@ export function Canvas({ boardId }: CanvasProps) {
   }
 
   function handlePointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
-    const drag = draggingRef.current;
     const rect = canvasRef.current!.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
 
+    if (isPanningRef.current) {
+      useViewportStore.getState().setPan({
+        x: e.clientX - panStartRef.current.x,
+        y: e.clientY - panStartRef.current.y,
+      });
+      return;
+    }
+
+    const { x, y } = screenToWorld(sx, sy);
     updateCursor(boardId, x, y);
 
+    const drag = draggingRef.current;
     if (!drag) return;
 
     if (drag.mode === "draw") {
@@ -408,6 +504,13 @@ export function Canvas({ boardId }: CanvasProps) {
   }
 
   function handlePointerUp() {
+    if (isPanningRef.current) {
+      isPanningRef.current = false;
+      const tool = useToolStore.getState().activeTool;
+      if (canvasRef.current) {
+        canvasRef.current.style.cursor = tool === "hand" ? "grab" : "default";
+      }
+    }
     updateIsDrawing(boardId, false);
     draggingRef.current = null;
   }
@@ -421,6 +524,7 @@ export function Canvas({ boardId }: CanvasProps) {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={() => {
+          isPanningRef.current = false;
           updateIsDrawing(boardId, false);
           updateCursor(boardId, null, null);
         }}
