@@ -10,6 +10,7 @@ type SceneState = {
   addElement: (element: Element) => void
   updateElement: (id: string, patch: Partial<Element>) => void
   removeElement: (id: string) => void
+  clearElements: () => void
   setSelectedId: (id: string | null) => void
 }
 
@@ -57,6 +58,17 @@ export const useSceneStore = create<SceneState>((set) => ({
     set((state) => ({
       selectedId: state.selectedId === id ? null : state.selectedId,
     }))
+  },
+  clearElements: () => {
+    const boardId = useSceneStore.getState().boardId
+    if (!boardId) return
+
+    const { ydoc, yElements } = getBoardConnection(boardId)
+    ydoc.transact(() => {
+      Array.from(yElements.keys()).forEach((key) => yElements.delete(key))
+    })
+
+    set({ selectedId: null })
   },
   updateElement: (id, patch) => {
     const boardId = useSceneStore.getState().boardId
