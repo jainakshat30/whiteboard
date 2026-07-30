@@ -1,38 +1,18 @@
 {
-  "name": "whiteboard",
+  "name": "whiteboard-monorepo",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@11.18.0",
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "concurrently -k -n \"next,ws\" -c \"cyan,magenta\" \"next dev\" \"node server/index.js\"",
-    "dev:next": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "ws-server": "node server/index.js"
-  },
-  "dependencies": {
-    "@hocuspocus/provider": "^4.3.0",
-    "@hocuspocus/server": "^4.3.0",
-    "dotenv": "^17.4.2",
-    "next": "16.2.10",
-    "pg": "^8.22.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "roughjs": "^4.6.6",
-    "y-indexeddb": "^9.0.12",
-    "yjs": "^13.6.31",
-    "zustand": "^5.0.14"
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/pg": "^8.20.0",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "concurrently": "^10.0.4",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.10",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "turbo": "^2.1.0"
   }
 }

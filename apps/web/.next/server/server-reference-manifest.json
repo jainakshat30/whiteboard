@@ -1,0 +1,30 @@
+{
+  "node": {
+    "606aa4fc0b82514164106b9ae2b80d096b6e60504c": {
+      "workers": {
+        "app/page": {
+          "moduleId": 77093,
+          "async": true,
+          "exportedName": "createBoardAction",
+          "filename": "apps/web/src/app/actions/boards.ts"
+        }
+      },
+      "filename": "apps/web/src/app/actions/boards.ts",
+      "exportedName": "createBoardAction"
+    },
+    "405aefbf54a4fa1d47a63f7483d2db8d801567c602": {
+      "workers": {
+        "app/page": {
+          "moduleId": 77093,
+          "async": true,
+          "exportedName": "deleteBoardAction",
+          "filename": "apps/web/src/app/actions/boards.ts"
+        }
+      },
+      "filename": "apps/web/src/app/actions/boards.ts",
+      "exportedName": "deleteBoardAction"
+    }
+  },
+  "edge": {},
+  "encryptionKey": "dfuiOMuLviiqFWADsxkIJms8f1x63S93yEr1OjPxwQo="
+}
