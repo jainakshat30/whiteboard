@@ -1,7 +1,0 @@
-{
-  "/_global-error/page": "/_global-error",
-  "/_not-found/page": "/_not-found",
-  "/board/[boardId]/page": "/board/[boardId]",
-  "/favicon.ico/route": "/favicon.ico",
-  "/page": "/"
-}
