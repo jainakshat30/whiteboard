@@ -1,6 +1,6 @@
 import { Server } from '@hocuspocus/server'
 import * as Y from 'yjs'
-import { getSnapshot, saveSnapshot } from './db.js'
+import { getSnapshot, saveSnapshot } from './db/index.js'
 
 const server = new Server({
   port: process.env.PORT || 1234,

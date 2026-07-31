@@ -11,12 +11,10 @@
   "dependencies": {
     "@hocuspocus/provider": "^4.3.0",
     "@next-auth/prisma-adapter": "^1.0.7",
-    "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "lucide-react": "^1.28.0",
     "next": "16.2.10",
     "next-auth": "^4.24.15",
-    "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "roughjs": "^4.6.6",
@@ -25,14 +23,13 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@prisma/config": "^7.9.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/pg": "^8.20.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "prisma": "^7.9.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
