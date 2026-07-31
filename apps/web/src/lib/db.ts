@@ -15,6 +15,7 @@ export type BoardRecord = {
   title: string
   created_at: Date
   updated_at: Date
+  userId?: string | null
 }
 
 let isInitialized = false
@@ -27,7 +28,8 @@ export async function initDb() {
       title TEXT NOT NULL DEFAULT 'Untitled Board',
       snapshot BYTEA,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      "userId" TEXT REFERENCES "User"(id) ON DELETE CASCADE
     );
   `)
   isInitialized = true
@@ -36,22 +38,22 @@ export async function initDb() {
 export async function getBoards(): Promise<BoardRecord[]> {
   await initDb()
   const result = await pool.query<BoardRecord>(`
-    SELECT id, title, created_at, updated_at
+    SELECT id, title, created_at, updated_at, "userId"
     FROM boards
     ORDER BY updated_at DESC
   `)
   return result.rows
 }
 
-export async function createBoard(id: string, title: string = 'Untitled Board'): Promise<BoardRecord> {
+export async function createBoard(id: string, title: string = 'Untitled Board', userId: string | null = null): Promise<BoardRecord> {
   await initDb()
   const result = await pool.query<BoardRecord>(
     `
-    INSERT INTO boards (id, title, snapshot, created_at, updated_at)
-    VALUES ($1, $2, NULL, NOW(), NOW())
-    RETURNING id, title, created_at, updated_at
+    INSERT INTO boards (id, title, snapshot, created_at, updated_at, "userId")
+    VALUES ($1, $2, NULL, NOW(), NOW(), $3)
+    RETURNING id, title, created_at, updated_at, "userId"
     `,
-    [id, title]
+    [id, title, userId]
   )
   return result.rows[0]
 }
