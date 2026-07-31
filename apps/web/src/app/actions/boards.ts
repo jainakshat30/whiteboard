@@ -6,7 +6,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
 export async function fetchBoardsAction(): Promise<BoardRecord[]> {
-  return await getBoards()
+  const session = await getServerSession(authOptions)
+  const userId = (session?.user as any)?.id || null
+  return await getBoards(userId)
 }
 
 export async function createBoardAction(id: string, title?: string): Promise<BoardRecord> {

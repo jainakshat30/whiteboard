@@ -3,13 +3,18 @@ import { getBoards, BoardRecord } from "@/lib/db";
 import { CreateBoardButton } from "@/components/CreateBoardButton";
 import { DeleteBoardButton } from "@/components/DeleteBoardButton";
 import { UserAuthButton } from "@/components/UserAuthButton";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export const revalidate = 0;
 
 export default async function HomePage() {
+  const session = await getServerSession(authOptions);
+  const userId = (session?.user as any)?.id || null;
+
   let boards: BoardRecord[] = [];
   try {
-    boards = await getBoards();
+    boards = await getBoards(userId);
   } catch (error) {
     console.error("Failed to fetch boards from PostgreSQL:", error);
   }

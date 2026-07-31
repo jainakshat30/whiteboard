@@ -35,14 +35,28 @@ export async function initDb() {
   isInitialized = true
 }
 
-export async function getBoards(): Promise<BoardRecord[]> {
+export async function getBoards(userId?: string | null): Promise<BoardRecord[]> {
   await initDb()
-  const result = await pool.query<BoardRecord>(`
-    SELECT id, title, created_at, updated_at, "userId"
-    FROM boards
-    ORDER BY updated_at DESC
-  `)
-  return result.rows
+  if (userId) {
+    const result = await pool.query<BoardRecord>(
+      `
+      SELECT id, title, created_at, updated_at, "userId"
+      FROM boards
+      WHERE "userId" = $1 OR "userId" IS NULL
+      ORDER BY updated_at DESC
+      `,
+      [userId]
+    )
+    return result.rows
+  } else {
+    const result = await pool.query<BoardRecord>(`
+      SELECT id, title, created_at, updated_at, "userId"
+      FROM boards
+      WHERE "userId" IS NULL
+      ORDER BY updated_at DESC
+    `)
+    return result.rows
+  }
 }
 
 export async function createBoard(id: string, title: string = 'Untitled Board', userId: string | null = null): Promise<BoardRecord> {
