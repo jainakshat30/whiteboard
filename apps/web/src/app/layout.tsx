@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   description: "Real-time collaborative whiteboard powered by Next.js and Yjs",
 };
 
+import { Providers } from "@/components/Providers";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -17,7 +19,9 @@ export default function RootLayout({
       lang="en"
       className={`${primaryFont.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 transition-colors">{children}</body>
+      <body className="min-h-full flex flex-col font-sans bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 transition-colors">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

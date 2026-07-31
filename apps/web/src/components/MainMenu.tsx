@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useSceneStore } from '@/store/scene'
+import { UserAuthButton } from '@/components/UserAuthButton'
 
 export function MainMenu() {
   const [isOpen, setIsOpen] = useState(false)
@@ -58,6 +59,12 @@ export function MainMenu() {
               </svg>
               Reset the canvas
             </button>
+            
+            <div className="my-2 h-px w-full bg-neutral-200 dark:bg-neutral-800" />
+            
+            <div className="px-2 pb-2 pt-1 flex justify-center">
+              <UserAuthButton />
+            </div>
           </div>
         )}
       </div>

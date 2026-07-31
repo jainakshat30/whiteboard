@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getBoards, BoardRecord } from "@/lib/db";
 import { CreateBoardButton } from "@/components/CreateBoardButton";
 import { DeleteBoardButton } from "@/components/DeleteBoardButton";
+import { UserAuthButton } from "@/components/UserAuthButton";
 
 export const revalidate = 0;
 
@@ -24,7 +25,10 @@ export default async function HomePage() {
             Real-time collaborative drawing boards synced with PostgreSQL
           </p>
         </div>
-        <CreateBoardButton />
+        <div className="flex items-center gap-4">
+          <CreateBoardButton />
+          <UserAuthButton />
+        </div>
       </div>
 
       {boards.length === 0 ? (
