@@ -13,6 +13,8 @@ import {
   getRemoteCursors,
   updateIsDrawing,
 } from "@/store/presence";
+import { getWsTokenAction } from "@/app/actions/boards";
+import { useConnectionStore } from "@/store/yjs";
 import { CANVAS_FONT_FAMILY } from "@/config/font";
 import { useThemeStore, getAdaptiveStrokeColor } from "@/store/theme";
 import { useViewportStore } from "@/store/viewport";
@@ -78,12 +80,21 @@ export function Canvas({ boardId }: CanvasProps) {
     };
   }
 
+  const userRole = useConnectionStore((s) => s.userRole);
+
   useEffect(() => {
+    let active = true;
     useThemeStore.getState().initTheme();
-    useSceneStore.getState().initBoard(boardId);
-    const { provider } = getBoardConnection(boardId);
-    initializePresence(boardId);
-    const awareness = provider.awareness;
+    
+    getWsTokenAction().then((token) => {
+      if (!active) return;
+      useSceneStore.getState().initBoard(boardId);
+      const { provider } = getBoardConnection(boardId, token);
+      initializePresence(boardId);
+      const awareness = provider.awareness;
+      
+      awareness?.on("change", render);
+    });
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -296,13 +307,14 @@ export function Canvas({ boardId }: CanvasProps) {
     window.addEventListener("keyup", handleKeyUp);
     canvas.addEventListener("wheel", handleWheel, { passive: false });
 
-    awareness?.on("change", render);
     return () => {
+      active = false;
       window.removeEventListener("resize", resizeCanvas);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
       canvas.removeEventListener("wheel", handleWheel);
-      awareness?.off("change", render);
+      const { provider } = getBoardConnection(boardId, null);
+      provider.awareness?.off("change", render);
       unsubscribeScene();
       unsubscribeTheme();
       unsubscribeViewport();
@@ -313,6 +325,10 @@ export function Canvas({ boardId }: CanvasProps) {
   const activeTool = useToolStore((s) => s.activeTool);
   useEffect(() => {
     if (!canvasRef.current) return;
+    if (userRole === "AUDIENCE") {
+      canvasRef.current.style.cursor = isPanningRef.current ? "grabbing" : "grab";
+      return;
+    }
     if (activeTool === "hand" || isSpacePressedRef.current) {
       canvasRef.current.style.cursor = isPanningRef.current ? "grabbing" : "grab";
     } else if (activeTool === "freedraw") {
@@ -322,7 +338,7 @@ export function Canvas({ boardId }: CanvasProps) {
     } else {
       canvasRef.current.style.cursor = "default";
     }
-  }, [activeTool]);
+  }, [activeTool, userRole]);
 
   function hitTest(x: number, y: number): Element | null {
     const elements = useSceneStore.getState().elements;
@@ -344,8 +360,8 @@ export function Canvas({ boardId }: CanvasProps) {
     const tool = useToolStore.getState().activeTool;
     const { panX, panY } = useViewportStore.getState();
 
-    // Hand tool, Middle click, or Spacebar drag -> start panning
-    if (tool === "hand" || e.button === 1 || isSpacePressedRef.current) {
+    // Hand tool, Middle click, Spacebar drag, or Audience -> start panning
+    if (userRole === "AUDIENCE" || tool === "hand" || e.button === 1 || isSpacePressedRef.current) {
       isPanningRef.current = true;
       panStartRef.current = {
         x: e.clientX - panX,
