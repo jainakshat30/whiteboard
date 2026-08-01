@@ -6,7 +6,7 @@ import { useToolStore, Tool } from '@/store/tools'
 import { useConnectionStore, getBoardConnection } from '@/store/yjs'
 import { useThemeStore } from '@/store/theme'
 import { useSceneStore } from '@/store/scene'
-import { getOnlineUsers, UserPresence } from '@/store/presence'
+import { getOnlineUsers, UserPresence, getSavedUserName } from '@/store/presence'
 
 type ToolConfig = {
   id: Tool
@@ -105,9 +105,45 @@ export function Toolbar() {
   const activeTool = useToolStore((s) => s.activeTool)
   const setTool = useToolStore((s) => s.setTool)
   const status = useConnectionStore((s) => s.status)
+  const userRole = useConnectionStore((s) => s.userRole)
   const theme = useThemeStore((s) => s.theme)
   const toggleTheme = useThemeStore((s) => s.toggleTheme)
   const [users, setUsers] = useState<UserPresence[]>([])
+  const [accessRequests, setAccessRequests] = useState<{userId: string, userName: string}[]>([])
+
+  useEffect(() => {
+    function handleAccessRequest(e: Event) {
+      const detail = (e as CustomEvent).detail
+      setAccessRequests(prev => {
+        if (prev.find(req => req.userId === detail.userId)) return prev
+        return [...prev, detail]
+      })
+    }
+    window.addEventListener('hocuspocus:access_requested', handleAccessRequest)
+    return () => window.removeEventListener('hocuspocus:access_requested', handleAccessRequest)
+  }, [])
+
+  function handleRequestAccess() {
+    if (!boardId) return
+    const { provider } = getBoardConnection(boardId)
+    const savedName = getSavedUserName() || 'Someone'
+    provider.sendStateless(JSON.stringify({ type: 'request_access', userName: savedName }))
+    alert('Access request sent to the Host!')
+  }
+
+  function handleApprove(userId: string) {
+    if (!boardId) return
+    const { provider } = getBoardConnection(boardId)
+    provider.sendStateless(JSON.stringify({ type: 'approve_access', userId }))
+    setAccessRequests(prev => prev.filter(r => r.userId !== userId))
+  }
+
+  function handleDeny(userId: string) {
+    if (!boardId) return
+    const { provider } = getBoardConnection(boardId)
+    provider.sendStateless(JSON.stringify({ type: 'deny_access', userId }))
+    setAccessRequests(prev => prev.filter(r => r.userId !== userId))
+  }
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -155,7 +191,7 @@ export function Toolbar() {
       <div className="h-6 w-px bg-neutral-200 dark:bg-neutral-800 mx-0.5" />
 
       <div className="flex gap-1">
-        {tools.map((t) => (
+        {tools.filter(t => userRole !== 'AUDIENCE' || t.id === 'hand').map((t) => (
           <button
             key={t.id}
             onClick={() => setTool(t.id)}
@@ -173,6 +209,30 @@ export function Toolbar() {
           </button>
         ))}
       </div>
+      
+      {userRole === 'AUDIENCE' && (
+        <button
+          onClick={handleRequestAccess}
+          className="ml-2 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition"
+        >
+          Request Drawing Access
+        </button>
+      )}
+
+      {userRole === 'HOST' && accessRequests.length > 0 && (
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-4 w-72 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-2xl p-4">
+          <h4 className="text-sm font-bold mb-2">Access Requests</h4>
+          {accessRequests.map(req => (
+            <div key={req.userId} className="flex flex-col gap-2 p-2 bg-neutral-50 dark:bg-neutral-800 rounded-lg">
+              <span className="text-sm font-medium">{req.userName} wants to draw</span>
+              <div className="flex gap-2">
+                <button onClick={() => handleApprove(req.userId)} className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded py-1 text-xs font-semibold">Approve</button>
+                <button onClick={() => handleDeny(req.userId)} className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded py-1 text-xs font-semibold">Deny</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="h-6 w-px bg-neutral-200 dark:bg-neutral-800 mx-0.5" />
 

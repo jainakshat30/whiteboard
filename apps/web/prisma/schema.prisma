@@ -42,6 +42,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   boards        Board[]
+  participants  BoardParticipant[]
 }
 
 model VerificationToken {
@@ -60,6 +61,28 @@ model Board {
   updated_at DateTime @default(now()) @db.Timestamptz
   userId     String?
   user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  participants BoardParticipant[]
 
   @@map("boards")
+}
+
+enum BoardRole {
+  HOST
+  EDITOR
+  AUDIENCE
+}
+
+model BoardParticipant {
+  id        String    @id @default(cuid())
+  boardId   String
+  userId    String
+  role      BoardRole @default(AUDIENCE)
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  updatedAt DateTime  @default(now()) @db.Timestamptz @updatedAt
+  
+  board     Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([boardId, userId])
+  @@map("board_participants")
 }

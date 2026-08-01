@@ -32,6 +32,18 @@ export async function initDb() {
       "userId" TEXT REFERENCES "User"(id) ON DELETE CASCADE
     );
   `)
+  // Create board_participants just in case (though Prisma db push handles this)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS board_participants (
+      id TEXT PRIMARY KEY,
+      "boardId" TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+      "userId" TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+      role TEXT NOT NULL DEFAULT 'AUDIENCE',
+      "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      UNIQUE("boardId", "userId")
+    );
+  `).catch(() => {})
   isInitialized = true
 }
 
@@ -61,6 +73,7 @@ export async function getBoards(userId?: string | null): Promise<BoardRecord[]> 
 
 export async function createBoard(id: string, title: string = 'Untitled Board', userId: string | null = null): Promise<BoardRecord> {
   await initDb()
+  console.log('[LOG] user ID passed to createBoard:', userId)
   const result = await pool.query<BoardRecord>(
     `
     INSERT INTO boards (id, title, snapshot, created_at, updated_at, "userId")
@@ -69,6 +82,34 @@ export async function createBoard(id: string, title: string = 'Untitled Board', 
     `,
     [id, title, userId]
   )
+  console.log('[LOG] inserted board record:', result.rows[0])
+  
+  if (userId) {
+    const { randomUUID } = await import('crypto')
+    const uuid = randomUUID()
+    try {
+      await pool.query(
+        `
+        INSERT INTO board_participants (id, "boardId", "userId", role, "createdAt", "updatedAt")
+        VALUES ($1, $2, $3, 'HOST'::"BoardRole", NOW(), NOW())
+        ON CONFLICT ("boardId", "userId") DO UPDATE SET role = 'HOST'::"BoardRole"
+        `,
+        [uuid, id, userId]
+      )
+      console.log('[LOG] inserted participant record:', { id: uuid, boardId: id, userId, role: 'HOST' })
+    } catch (e) {
+      await pool.query(
+        `
+        INSERT INTO board_participants (id, "boardId", "userId", role, "createdAt", "updatedAt")
+        VALUES ($1, $2, $3, 'HOST', NOW(), NOW())
+        ON CONFLICT ("boardId", "userId") DO UPDATE SET role = 'HOST'
+        `,
+        [uuid, id, userId]
+      ).catch(() => {})
+      console.log('[LOG] inserted participant record (fallback):', { id: uuid, boardId: id, userId, role: 'HOST' })
+    }
+  }
+
   return result.rows[0]
 }
 
