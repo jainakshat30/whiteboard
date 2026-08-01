@@ -66,16 +66,13 @@ export async function getUserIdFromToken(token) {
   }
   
   if (identifier && identifier.startsWith('ws_')) {
-    const userId = identifier.replace('ws_', '')
-    console.log('[LOG] resolved user ID from the token:', userId)
-    return userId
+    return identifier.replace('ws_', '')
   }
   return null
 }
 
 export async function getUserRole(boardId, userId) {
   if (!userId) {
-    console.log('[LOG] result of getUserRole(): AUDIENCE (no userId)')
     return 'AUDIENCE'
   }
   
@@ -84,9 +81,7 @@ export async function getUserRole(boardId, userId) {
       'SELECT role FROM board_participants WHERE "boardId" = $1 AND "userId" = $2',
       [boardId, userId]
     )
-    console.log('[LOG] contents of board_participants:', result.rows)
     if (result.rows.length > 0) {
-      console.log('[LOG] result of getUserRole():', result.rows[0].role)
       return result.rows[0].role
     }
   } catch (e) {
@@ -103,21 +98,17 @@ export async function getUserRole(boardId, userId) {
       const creatorId = boardResult.rows[0].userId
       if (creatorId === userId || !creatorId) {
         await updateUserRole(boardId, userId, 'HOST')
-        console.log('[LOG] result of getUserRole(): HOST (auto-promoted board creator)')
         return 'HOST'
       }
     } else {
       await updateUserRole(boardId, userId, 'HOST')
-      console.log('[LOG] result of getUserRole(): HOST (new board creator)')
       return 'HOST'
     }
   } catch (e) {
     console.error("Error checking board creator:", e)
-    console.log('[LOG] result of getUserRole(): HOST (fallback on error)')
     return 'HOST'
   }
 
-  console.log('[LOG] result of getUserRole(): AUDIENCE (default)')
   return 'AUDIENCE'
 }
 

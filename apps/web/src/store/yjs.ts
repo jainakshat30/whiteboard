@@ -17,7 +17,6 @@ export const useConnectionStore = create<ConnectionStateStore>((set) => ({
   setStatus: (status) => set({ status }),
   userRole: "AUDIENCE",
   setUserRole: (userRole) => {
-    console.log('[LOG] updates to useConnectionStore.userRole:', userRole)
     set({ userRole })
   },
 }))
@@ -80,7 +79,6 @@ export function getBoardConnection(
       try {
         const msg = JSON.parse(payload as string)
         if (msg.type === 'role_assigned') {
-          console.log('[LOG] role received on the frontend:', msg.role)
           useConnectionStore.getState().setUserRole(msg.role)
         } else if (msg.type === 'access_requested') {
           // Trigger a custom event for the UI to listen to

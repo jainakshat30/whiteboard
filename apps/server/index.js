@@ -8,7 +8,6 @@ const server = new Server({
   async onAuthenticate(data) {
     try {
       const token = data.token
-      console.log('[LOG] token received in onAuthenticate:', token)
       const userId = await getUserIdFromToken(token)
       
       const role = await getUserRole(data.documentName, userId)
@@ -50,7 +49,6 @@ const server = new Server({
           role = await getUserRole(documentName, userId)
         }
         const userRole = role || 'AUDIENCE'
-        console.log('[LOG] role sent in role_assigned:', userRole)
         if (connection) {
           connection.sendStateless(JSON.stringify({ type: 'role_assigned', role: userRole }))
         }

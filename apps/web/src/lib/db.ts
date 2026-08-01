@@ -73,7 +73,6 @@ export async function getBoards(userId?: string | null): Promise<BoardRecord[]> 
 
 export async function createBoard(id: string, title: string = 'Untitled Board', userId: string | null = null): Promise<BoardRecord> {
   await initDb()
-  console.log('[LOG] user ID passed to createBoard:', userId)
   const result = await pool.query<BoardRecord>(
     `
     INSERT INTO boards (id, title, snapshot, created_at, updated_at, "userId")
@@ -82,7 +81,6 @@ export async function createBoard(id: string, title: string = 'Untitled Board', 
     `,
     [id, title, userId]
   )
-  console.log('[LOG] inserted board record:', result.rows[0])
   
   if (userId) {
     const { randomUUID } = await import('crypto')
@@ -96,7 +94,6 @@ export async function createBoard(id: string, title: string = 'Untitled Board', 
         `,
         [uuid, id, userId]
       )
-      console.log('[LOG] inserted participant record:', { id: uuid, boardId: id, userId, role: 'HOST' })
     } catch (e) {
       await pool.query(
         `
@@ -106,7 +103,6 @@ export async function createBoard(id: string, title: string = 'Untitled Board', 
         `,
         [uuid, id, userId]
       ).catch(() => {})
-      console.log('[LOG] inserted participant record (fallback):', { id: uuid, boardId: id, userId, role: 'HOST' })
     }
   }
 

@@ -30,7 +30,6 @@ export async function createBoardAction(id: string, title?: string): Promise<Boa
     }
   }
 
-  console.log('[LOG] authenticated user ID in createBoardAction:', userId)
   const board = await createBoard(id, title, userId)
   revalidatePath('/')
   return board
