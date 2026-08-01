@@ -2,19 +2,29 @@
 
 import { useState, useEffect } from 'react'
 import { initializePresence, getSavedUserName } from '@/store/presence'
+import { useSession } from 'next-auth/react'
 
 export function UserNameModal({ boardId }: { boardId: string }) {
   const [isOpen, setIsOpen] = useState(false)
   const [nameInput, setNameInput] = useState('')
+  const { data: session, status } = useSession()
 
   useEffect(() => {
+    if (status === 'loading') return
+
+    if (session?.user?.name) {
+      initializePresence(boardId, session.user.name)
+      setIsOpen(false)
+      return
+    }
+
     const saved = getSavedUserName()
     if (!saved) {
       setIsOpen(true)
     } else {
       initializePresence(boardId, saved)
     }
-  }, [boardId])
+  }, [boardId, session, status])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
