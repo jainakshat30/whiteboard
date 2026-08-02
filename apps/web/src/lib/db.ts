@@ -13,6 +13,7 @@ if (process.env.NODE_ENV !== 'production') globalForPg.pool = pool
 export type BoardRecord = {
   id: string
   title: string
+  subject?: string | null
   created_at: Date
   updated_at: Date
   userId?: string | null
@@ -26,6 +27,7 @@ export async function initDb() {
     CREATE TABLE IF NOT EXISTS boards (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL DEFAULT 'Untitled Board',
+      subject TEXT,
       snapshot BYTEA,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -52,7 +54,7 @@ export async function getBoards(userId?: string | null): Promise<BoardRecord[]> 
   if (userId) {
     const result = await pool.query<BoardRecord>(
       `
-      SELECT id, title, created_at, updated_at, "userId"
+      SELECT id, title, subject, created_at, updated_at, "userId"
       FROM boards
       WHERE "userId" = $1 OR "userId" IS NULL
       ORDER BY updated_at DESC
@@ -62,7 +64,7 @@ export async function getBoards(userId?: string | null): Promise<BoardRecord[]> 
     return result.rows
   } else {
     const result = await pool.query<BoardRecord>(`
-      SELECT id, title, created_at, updated_at, "userId"
+      SELECT id, title, subject, created_at, updated_at, "userId"
       FROM boards
       WHERE "userId" IS NULL
       ORDER BY updated_at DESC
@@ -71,15 +73,15 @@ export async function getBoards(userId?: string | null): Promise<BoardRecord[]> 
   }
 }
 
-export async function createBoard(id: string, title: string = 'Untitled Board', userId: string | null = null): Promise<BoardRecord> {
+export async function createBoard(id: string, title: string = 'Untitled Board', subject: string | null = null, userId: string | null = null): Promise<BoardRecord> {
   await initDb()
   const result = await pool.query<BoardRecord>(
     `
-    INSERT INTO boards (id, title, snapshot, created_at, updated_at, "userId")
-    VALUES ($1, $2, NULL, NOW(), NOW(), $3)
-    RETURNING id, title, created_at, updated_at, "userId"
+    INSERT INTO boards (id, title, subject, snapshot, created_at, updated_at, "userId")
+    VALUES ($1, $2, $3, NULL, NOW(), NOW(), $4)
+    RETURNING id, title, subject, created_at, updated_at, "userId"
     `,
-    [id, title, userId]
+    [id, title, subject, userId]
   )
   
   if (userId) {
