@@ -1,6 +1,8 @@
 import { Server } from '@hocuspocus/server'
 import * as Y from 'yjs'
-import { getSnapshot, saveSnapshot, getUserIdFromToken, getUserRole, updateUserRole } from './db/index.js'
+import { getSnapshot, saveSnapshot, getUserIdFromToken, getUserRole } from './db/index.js'
+import { handleStatelessMessage } from './handlers/statelessHandler.js'
+import { accessRequestService } from './services/accessRequestService.js'
 
 const server = new Server({
   port: process.env.PORT || 1234,
@@ -30,72 +32,28 @@ const server = new Server({
     }
   },
   
-  async onStateless({ connection, documentName, payload, context }) {
-    try {
-      const msg = JSON.parse(payload)
-      const ctx = context || connection?.context || {}
-      let userId = ctx.userId
-      let role = ctx.role
-      
-      if (!role && userId) {
-        role = await getUserRole(documentName, userId)
-      }
-      
-      if (msg.type === 'get_role') {
-        if (!userId && msg.token) {
-          userId = await getUserIdFromToken(msg.token)
+  async onStateless(data) {
+    await handleStatelessMessage(data)
+  },
+
+  async onDisconnect({ connection, documentName, context, instance, document }) {
+    const userId = context?.userId || connection?.context?.userId
+    if (userId) {
+      const affected = accessRequestService.handleUserDisconnect(userId)
+      affected.forEach(({ boardId }) => {
+        const doc = document || instance?.documents?.get(boardId)
+        if (doc) {
+          const updatedPending = accessRequestService.getPendingRequests(boardId)
+          doc.connections.forEach((state, conn) => {
+            if (conn.context?.role === 'HOST') {
+              conn.sendStateless(JSON.stringify({
+                type: 'pending_requests_list',
+                requests: updatedPending,
+              }))
+            }
+          })
         }
-        if (userId) {
-          role = await getUserRole(documentName, userId)
-        }
-        const userRole = role || 'AUDIENCE'
-        if (connection) {
-          connection.sendStateless(JSON.stringify({ type: 'role_assigned', role: userRole }))
-        }
-      } else if (msg.type === 'request_access') {
-        const userName = msg.userName || 'Someone'
-        // Broadcast to all HOSTs
-        server.documents.get(documentName)?.connections.forEach(conn => {
-          if (conn.context?.role === 'HOST') {
-            conn.sendStateless(JSON.stringify({
-              type: 'access_requested',
-              userId: userId,
-              userName: userName
-            }))
-          }
-        })
-      } else if (msg.type === 'approve_access' && role === 'HOST') {
-        const targetUserId = msg.userId
-        await updateUserRole(documentName, targetUserId, 'EDITOR')
-        
-        // Find the target user's connection and update it
-        server.documents.get(documentName)?.connections.forEach(conn => {
-          if (conn.context?.userId === targetUserId) {
-            conn.readOnly = false
-            conn.context.role = 'EDITOR'
-            conn.sendStateless(JSON.stringify({ type: 'role_assigned', role: 'EDITOR' }))
-          }
-        })
-      } else if (msg.type === 'deny_access' && role === 'HOST') {
-        // Find the target user's connection and notify them
-        server.documents.get(documentName)?.connections.forEach(conn => {
-          if (conn.context?.userId === msg.userId) {
-            conn.sendStateless(JSON.stringify({ type: 'role_assigned', role: 'AUDIENCE' }))
-          }
-        })
-      } else if (msg.type === 'revoke_access' && role === 'HOST') {
-        const targetUserId = msg.userId
-        await updateUserRole(documentName, targetUserId, 'AUDIENCE')
-        server.documents.get(documentName)?.connections.forEach(conn => {
-          if (conn.context?.userId === targetUserId) {
-            conn.readOnly = true
-            conn.context.role = 'AUDIENCE'
-            conn.sendStateless(JSON.stringify({ type: 'role_assigned', role: 'AUDIENCE' }))
-          }
-        })
-      }
-    } catch (e) {
-      console.error('Failed to handle stateless message', e)
+      })
     }
   },
 
@@ -103,7 +61,7 @@ const server = new Server({
     const snapshot = await getSnapshot(documentName)
     if (snapshot) {
       console.log(`Loaded board "${documentName}" from database`)
-      return snapshot // Hocuspocus accepts a raw Uint8Array update directly
+      return snapshot
     }
     console.log(`No saved state for board "${documentName}", starting fresh`)
   },

@@ -7,6 +7,8 @@ import { useConnectionStore, getBoardConnection } from '@/store/yjs'
 import { useThemeStore } from '@/store/theme'
 import { useSceneStore } from '@/store/scene'
 import { getOnlineUsers, UserPresence, getSavedUserName } from '@/store/presence'
+import { useNotificationStore } from '@/store/notifications'
+import { NotificationBell } from './NotificationBell'
 
 type ToolConfig = {
   id: Tool
@@ -108,41 +110,14 @@ export function Toolbar() {
   const userRole = useConnectionStore((s) => s.userRole)
   const theme = useThemeStore((s) => s.theme)
   const toggleTheme = useThemeStore((s) => s.toggleTheme)
+  const audienceState = useNotificationStore((s) => s.audienceState)
   const [users, setUsers] = useState<UserPresence[]>([])
-  const [accessRequests, setAccessRequests] = useState<{userId: string, userName: string}[]>([])
-
-  useEffect(() => {
-    function handleAccessRequest(e: Event) {
-      const detail = (e as CustomEvent).detail
-      setAccessRequests(prev => {
-        if (prev.find(req => req.userId === detail.userId)) return prev
-        return [...prev, detail]
-      })
-    }
-    window.addEventListener('hocuspocus:access_requested', handleAccessRequest)
-    return () => window.removeEventListener('hocuspocus:access_requested', handleAccessRequest)
-  }, [])
 
   function handleRequestAccess() {
-    if (!boardId) return
+    if (!boardId || audienceState === 'pending') return
     const { provider } = getBoardConnection(boardId)
     const savedName = getSavedUserName() || 'Someone'
     provider.sendStateless(JSON.stringify({ type: 'request_access', userName: savedName }))
-    alert('Access request sent to the Host!')
-  }
-
-  function handleApprove(userId: string) {
-    if (!boardId) return
-    const { provider } = getBoardConnection(boardId)
-    provider.sendStateless(JSON.stringify({ type: 'approve_access', userId }))
-    setAccessRequests(prev => prev.filter(r => r.userId !== userId))
-  }
-
-  function handleDeny(userId: string) {
-    if (!boardId) return
-    const { provider } = getBoardConnection(boardId)
-    provider.sendStateless(JSON.stringify({ type: 'deny_access', userId }))
-    setAccessRequests(prev => prev.filter(r => r.userId !== userId))
   }
 
   useEffect(() => {
@@ -151,7 +126,7 @@ export function Toolbar() {
       
       const key = e.key.toLowerCase()
       const tool = tools.find((t) => t.shortcut.toLowerCase() === key)
-      if (tool) {
+      if (tool && userRole !== 'AUDIENCE') {
         e.preventDefault()
         setTool(tool.id)
       }
@@ -159,22 +134,36 @@ export function Toolbar() {
     
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [setTool])
+  }, [setTool, userRole])
 
   useEffect(() => {
     if (!boardId) return
-    const { provider } = getBoardConnection(boardId)
-    const awareness = provider.awareness
-    if (!awareness) return
+
+    let currentAwareness: any = null
 
     function updateUsers() {
       setUsers(getOnlineUsers(boardId!))
     }
 
-    updateUsers()
-    awareness.on('change', updateUsers)
+    const interval = setInterval(() => {
+      const { provider } = getBoardConnection(boardId)
+      if (provider.awareness !== currentAwareness) {
+        if (currentAwareness) {
+          currentAwareness.off('change', updateUsers)
+        }
+        currentAwareness = provider.awareness
+        if (currentAwareness) {
+          currentAwareness.on('change', updateUsers)
+          updateUsers()
+        }
+      }
+    }, 500)
+
     return () => {
-      awareness.off('change', updateUsers)
+      clearInterval(interval)
+      if (currentAwareness) {
+        currentAwareness.off('change', updateUsers)
+      }
     }
   }, [boardId])
 
@@ -187,6 +176,13 @@ export function Toolbar() {
       >
         &larr; Dashboard
       </Link>
+
+      {userRole === 'HOST' && (
+        <>
+          <div className="h-6 w-px bg-neutral-200 dark:bg-neutral-800 mx-0.5" />
+          <NotificationBell />
+        </>
+      )}
 
       <div className="h-6 w-px bg-neutral-200 dark:bg-neutral-800 mx-0.5" />
 
@@ -213,25 +209,22 @@ export function Toolbar() {
       {userRole === 'AUDIENCE' && (
         <button
           onClick={handleRequestAccess}
-          className="ml-2 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition"
+          disabled={audienceState === 'pending'}
+          className={`ml-2 px-3 py-1.5 rounded-lg text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer ${
+            audienceState === 'pending'
+              ? 'bg-indigo-400 dark:bg-indigo-700 cursor-not-allowed opacity-80'
+              : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600'
+          }`}
         >
-          Request Drawing Access
+          {audienceState === 'pending' ? (
+            <>
+              <span className="w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+              <span>Request Pending...</span>
+            </>
+          ) : (
+            <span>Request Drawing Access</span>
+          )}
         </button>
-      )}
-
-      {userRole === 'HOST' && accessRequests.length > 0 && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-4 w-72 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-2xl p-4">
-          <h4 className="text-sm font-bold mb-2">Access Requests</h4>
-          {accessRequests.map(req => (
-            <div key={req.userId} className="flex flex-col gap-2 p-2 bg-neutral-50 dark:bg-neutral-800 rounded-lg">
-              <span className="text-sm font-medium">{req.userName} wants to draw</span>
-              <div className="flex gap-2">
-                <button onClick={() => handleApprove(req.userId)} className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded py-1 text-xs font-semibold">Approve</button>
-                <button onClick={() => handleDeny(req.userId)} className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded py-1 text-xs font-semibold">Deny</button>
-              </div>
-            </div>
-          ))}
-        </div>
       )}
 
       <div className="h-6 w-px bg-neutral-200 dark:bg-neutral-800 mx-0.5" />
