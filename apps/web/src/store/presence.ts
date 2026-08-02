@@ -14,6 +14,17 @@ const colors = [
 const localColor =
   colors[Math.floor(Math.random() * colors.length)]
 
+// Track which boards have been initialized to prevent duplicate presence on refresh
+const globalAny = globalThis as any
+const pageSessionId = globalAny.__yjs_page_session
+const lastPresenceSessionId = globalAny.__yjs_presence_session
+const isPageRefresh = lastPresenceSessionId !== undefined && lastPresenceSessionId !== pageSessionId
+
+// On page refresh, clear initialized boards so presence can be reinitialized
+const initializedBoards: Set<string> = isPageRefresh ? new Set() : (globalAny.__yjs_initialized_boards || new Set())
+globalAny.__yjs_initialized_boards = initializedBoards
+globalAny.__yjs_presence_session = pageSessionId
+
 export function getSavedUserName(): string | null {
   if (typeof window === 'undefined') return null
   return sessionStorage.getItem('user_display_name')
@@ -28,6 +39,11 @@ export function initializePresence(boardId: string, customName?: string) {
   const { provider } = getBoardConnection(boardId)
   if (!provider.awareness) return
 
+  // If already initialized in this page session, skip
+  if (initializedBoards.has(boardId)) {
+    return
+  }
+
   const savedName = getSavedUserName()
   const displayName = customName || savedName || `User-${Math.floor(Math.random() * 1000)}`
 
@@ -40,6 +56,7 @@ export function initializePresence(boardId: string, customName?: string) {
     color: localColor,
   })
   provider.awareness.setLocalStateField("isDrawing", false)
+  initializedBoards.add(boardId)
 }
 
 export function updateCursor(
@@ -93,7 +110,7 @@ export function getOnlineUsers(boardId: string): UserPresence[] {
   const awareness = provider.awareness
   if (!awareness) return []
 
-  return Array.from(awareness.getStates().entries())
+  const allUsers = Array.from(awareness.getStates().entries())
     .map(([clientId, state]) => {
       const s = state as RemoteState
       if (!s.user) return null
@@ -106,4 +123,22 @@ export function getOnlineUsers(boardId: string): UserPresence[] {
       }
     })
     .filter((u): u is UserPresence => u !== null)
+  
+  // Deduplicate users by name - prefer local connection, then most recent
+  const usersByName = new Map<string, UserPresence>()
+  for (const user of allUsers) {
+    const existing = usersByName.get(user.name)
+    if (!existing) {
+      usersByName.set(user.name, user)
+    } else {
+      // Prefer local connection over remote
+      if (user.isLocal && !existing.isLocal) {
+        usersByName.set(user.name, user)
+      }
+      // If both are remote or both are local, keep the first one
+      // (the server will eventually timeout the stale one)
+    }
+  }
+  
+  return Array.from(usersByName.values())
 }

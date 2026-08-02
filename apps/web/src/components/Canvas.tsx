@@ -307,14 +307,37 @@ export function Canvas({ boardId }: CanvasProps) {
     window.addEventListener("keyup", handleKeyUp);
     canvas.addEventListener("wheel", handleWheel, { passive: false });
 
+    // Clear awareness state before page unload to prevent ghost connections
+    // Using both events for better browser compatibility
+    const handlePageHide = () => {
+      const { provider } = getBoardConnection(boardId, null);
+      if (provider.awareness) {
+        provider.awareness.setLocalState(null);
+      }
+    };
+    
+    const handleBeforeUnload = () => {
+      const { provider } = getBoardConnection(boardId, null);
+      if (provider.awareness) {
+        provider.awareness.setLocalState(null);
+      }
+    };
+    
+    window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
     return () => {
       active = false;
       window.removeEventListener("resize", resizeCanvas);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
       canvas.removeEventListener("wheel", handleWheel);
       const { provider } = getBoardConnection(boardId, null);
       provider.awareness?.off("change", render);
+      // Clear cursor position when leaving to avoid ghost cursors
+      updateCursor(boardId, null, null);
       unsubscribeScene();
       unsubscribeTheme();
       unsubscribeViewport();
