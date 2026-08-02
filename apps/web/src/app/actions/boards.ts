@@ -15,7 +15,7 @@ export async function fetchBoardsAction(): Promise<BoardRecord[]> {
   return await getBoards(userId)
 }
 
-export async function createBoardAction(id: string, title?: string): Promise<BoardRecord> {
+export async function createBoardAction(id: string, title?: string, subject?: string): Promise<BoardRecord> {
   const session = await getServerSession(authOptions)
   let userId = (session?.user as any)?.id || null
 
@@ -30,7 +30,7 @@ export async function createBoardAction(id: string, title?: string): Promise<Boa
     }
   }
 
-  const board = await createBoard(id, title, userId)
+  const board = await createBoard(id, title, subject, userId)
   revalidatePath('/')
   return board
 }

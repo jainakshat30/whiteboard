@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getBoards, BoardRecord } from "@/lib/db";
 import { CreateBoardButton } from "@/components/CreateBoardButton";
-import { DeleteBoardButton } from "@/components/DeleteBoardButton";
+import { BoardCard } from "@/components/BoardCard";
 import { UserAuthButton } from "@/components/UserAuthButton";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -20,15 +20,12 @@ export default async function HomePage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col p-8 text-neutral-900 dark:text-neutral-100 transition-colors">
+    <main className="flex min-h-screen w-full flex-col p-8 text-neutral-900 dark:text-neutral-100 transition-colors">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-4xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
             Whiteboards
           </h1>
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-            Real-time collaborative drawing boards synced with PostgreSQL
-          </p>
         </div>
         <div className="flex items-center gap-4">
           <CreateBoardButton />
@@ -50,36 +47,9 @@ export default async function HomePage() {
           <CreateBoardButton />
         </div>
       ) : (
-        <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid gap-6 grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
           {boards.map((board) => (
-            <div
-              key={board.id}
-              className="group relative flex flex-col justify-between rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6 shadow-xs transition hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-500"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition truncate pr-2">
-                    {board.title || "Untitled Board"}
-                  </h2>
-                  <DeleteBoardButton boardId={board.id} />
-                </div>
-                <p className="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate">
-                  ID: {board.id.substring(0, 8)}...
-                </p>
-              </div>
-
-              <div className="mt-6 flex items-center justify-between pt-4 border-t border-neutral-100 dark:border-neutral-800 text-xs text-neutral-500 dark:text-neutral-400">
-                <span>
-                  Updated {new Date(board.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </span>
-                <Link
-                  href={`/board/${board.id}`}
-                  className="font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300"
-                >
-                  Open &rarr;
-                </Link>
-              </div>
-            </div>
+            <BoardCard key={board.id} board={board} />
           ))}
         </div>
       )}

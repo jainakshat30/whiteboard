@@ -56,6 +56,7 @@ model VerificationToken {
 model Board {
   id         String   @id
   title      String   @default("Untitled Board")
+  subject    String?
   snapshot   Bytes?
   created_at DateTime @default(now()) @db.Timestamptz
   updated_at DateTime @default(now()) @db.Timestamptz

@@ -165,7 +165,7 @@ export function getBoardConnection(
 
   if (existing) {
     // If provider was destroyed (e.g., on page refresh), recreate it
-    if (!existing.provider || existing.provider.isDestroyed) {
+    if (!existing.provider || (existing.provider as any).isDestroyed) {
       const newProvider = createHocuspocusProvider(boardId, existing.ydoc)
       existing.provider = newProvider
     } else if (token && previousToken !== token) {
