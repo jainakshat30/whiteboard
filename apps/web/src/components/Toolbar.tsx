@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useToolStore, Tool } from '@/store/tools'
 import { useConnectionStore, getBoardConnection } from '@/store/yjs'
-import { useThemeStore } from '@/store/theme'
 import { useSceneStore } from '@/store/scene'
 import { getOnlineUsers, UserPresence, getSavedUserName } from '@/store/presence'
 import { useNotificationStore } from '@/store/notifications'
@@ -108,8 +107,6 @@ export function Toolbar() {
   const setTool = useToolStore((s) => s.setTool)
   const status = useConnectionStore((s) => s.status)
   const userRole = useConnectionStore((s) => s.userRole)
-  const theme = useThemeStore((s) => s.theme)
-  const toggleTheme = useThemeStore((s) => s.toggleTheme)
   const audienceState = useNotificationStore((s) => s.audienceState)
   const [users, setUsers] = useState<UserPresence[]>([])
 
@@ -228,14 +225,6 @@ export function Toolbar() {
       )}
 
       <div className="h-6 w-px bg-neutral-200 dark:bg-neutral-800 mx-0.5" />
-
-      <button
-        onClick={toggleTheme}
-        className="flex items-center justify-center px-2.5 h-9 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-300 transition cursor-pointer text-xs gap-1"
-        title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
-      >
-        {theme === 'light' ? '🌙' : '☀️'}
-      </button>
 
       {users.length > 0 && (
         <>

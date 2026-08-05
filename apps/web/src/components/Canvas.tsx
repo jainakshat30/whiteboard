@@ -125,30 +125,36 @@ export function Canvas({ boardId }: CanvasProps) {
 
       const roughOptions = {
         stroke,
-        strokeWidth: 2,
-        roughness: 1.2,
+        strokeWidth: el.strokeWidth || 2,
+        roughness: el.roughness ?? 1.2,
+        strokeLineDash: el.strokeStyle === 'dashed' ? [8, 8] : el.strokeStyle === 'dotted' ? [2, 6] : undefined,
         seed,
         fill: el.fillColor !== "transparent" ? el.fillColor : undefined,
         fillStyle: "hachure",
         hachureAngle: 60,
         hachureGap: 4,
+        preserveVertices: el.roundness === 'round' ? false : true,
       };
+      
+      // Handle opacity
+      const opacity = el.opacity ?? 100;
+      ctx.globalAlpha = opacity / 100;
 
       if (el.type === "freedraw" && el.points && el.points.length > 0) {
         const points: [number, number][] = el.points.map(p => [p.x, p.y]);
         if (points.length > 1) {
           rc.curve(points, {
             ...roughOptions,
-            strokeWidth: 2.5,
-            roughness: 1,
+            strokeWidth: el.strokeWidth || 2.5,
             fill: undefined,
           });
         } else {
           ctx.fillStyle = stroke;
           ctx.beginPath();
-          ctx.arc(points[0][0], points[0][1], 2, 0, Math.PI * 2);
+          ctx.arc(points[0][0], points[0][1], (el.strokeWidth || 2) / 2, 0, Math.PI * 2);
           ctx.fill();
         }
+        ctx.globalAlpha = 1;
         return;
       }
 
@@ -177,6 +183,8 @@ export function Canvas({ boardId }: CanvasProps) {
           fill: undefined
         });
       }
+      
+      ctx.globalAlpha = 1;
     }
 
     function render() {
@@ -187,7 +195,10 @@ export function Canvas({ boardId }: CanvasProps) {
       const { zoom, panX, panY } = useViewportStore.getState();
 
       // Clear & fill theme background
-      ctx.fillStyle = isDark ? "#121212" : "#ffffff";
+      const bgColor = isDark 
+        ? useThemeStore.getState().canvasBackgroundDark 
+        : useThemeStore.getState().canvasBackgroundLight;
+      ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
       // Save context state & apply viewport pan translation + zoom scale
@@ -282,6 +293,22 @@ export function Canvas({ boardId }: CanvasProps) {
         e.preventDefault();
         if (e.shiftKey) redo(boardId);
         else undo(boardId);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        const selectedId = useSceneStore.getState().selectedId;
+        if (selectedId) {
+          const selected = useSceneStore.getState().elements.find(el => el.id === selectedId);
+          if (selected) {
+            const { id, version, zIndex, ...props } = selected;
+            const newEl = createElement({
+              ...props,
+              x: props.x + 20,
+              y: props.y + 20,
+            });
+            useSceneStore.getState().addElement(newEl);
+            useSceneStore.getState().setSelectedId(newEl.id);
+          }
+        }
       } else if (e.key === "Delete" || e.key === "Backspace") {
         const selectedId = useSceneStore.getState().selectedId;
         if (selectedId) {
@@ -401,6 +428,9 @@ export function Canvas({ boardId }: CanvasProps) {
 
     const theme = useThemeStore.getState().theme;
     const defaultStroke = theme === "dark" ? "#f3f4f6" : "#1e1e1e";
+    
+    const { strokeColor, fillColor, strokeWidth, strokeStyle, roughness, roundness, opacity } = useToolStore.getState();
+    const finalStrokeColor = strokeColor === '#1e1e1e' || strokeColor === '#f3f4f6' ? defaultStroke : strokeColor;
 
     if (tool === "freedraw") {
       updateIsDrawing(boardId, true);
@@ -410,8 +440,13 @@ export function Canvas({ boardId }: CanvasProps) {
         y,
         width: 0,
         height: 0,
-        strokeColor: defaultStroke,
+        strokeColor: finalStrokeColor,
         fillColor: "transparent",
+        strokeWidth,
+        strokeStyle,
+        roughness,
+        roundness,
+        opacity,
         points: [{ x, y }],
       });
       useSceneStore.getState().addElement(el);
@@ -441,8 +476,13 @@ export function Canvas({ boardId }: CanvasProps) {
         y,
         width: 0,
         height: 0,
-        strokeColor: defaultStroke,
-        fillColor: tool === "line" ? "transparent" : "transparent",
+        strokeColor: finalStrokeColor,
+        fillColor: tool === "line" ? "transparent" : fillColor,
+        strokeWidth,
+        strokeStyle,
+        roughness,
+        roundness,
+        opacity,
       });
       useSceneStore.getState().addElement(el);
       draggingRef.current = { id: el.id, startX: x, startY: y, mode: "draw" };

@@ -9,6 +9,12 @@ export type Element = {
     height: number
     strokeColor: string
     fillColor: string
+    strokeWidth?: number
+    strokeStyle?: 'solid' | 'dashed' | 'dotted'
+    roughness?: number
+    roundness?: 'sharp' | 'round'
+    opacity?: number
+    zIndex?: number
     points?: { x: number; y: number }[]
     version: number // bumped on every edit — useful later for sync/undo
 }
