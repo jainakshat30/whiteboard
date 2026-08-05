@@ -88,6 +88,16 @@ const tools: ToolConfig[] = [
     ),
   },
   {
+    id: 'text',
+    label: 'Text',
+    shortcut: 't',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 7V4h16v3M12 4v16m-4 0h8" />
+      </svg>
+    ),
+  },
+  {
     id: 'eraser',
     label: 'Eraser',
     shortcut: '7',

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSceneStore } from "@/store/scene";
 import { useToolStore } from "@/store/tools";
 import { Element, createElement } from "@/types/elements";
@@ -59,6 +59,17 @@ export function Canvas({ boardId }: CanvasProps) {
   const isPanningRef = useRef<boolean>(false);
   const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const isSpacePressedRef = useRef<boolean>(false);
+  const [editingText, setEditingText] = useState<{ id: string; x: number; y: number; text: string } | null>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textAreaRef.current && editingText) {
+      textAreaRef.current.style.width = "0px";
+      textAreaRef.current.style.height = "0px";
+      textAreaRef.current.style.width = `${textAreaRef.current.scrollWidth + 10}px`;
+      textAreaRef.current.style.height = `${textAreaRef.current.scrollHeight}px`;
+    }
+  }, [editingText?.text, editingText?.id]);
 
   const draggingRef = useRef<{
     id: string;
@@ -182,6 +193,13 @@ export function Canvas({ boardId }: CanvasProps) {
           ...roughOptions,
           fill: undefined
         });
+      } else if (el.type === "text") {
+        const fontFamily = el.fontFamily || CANVAS_FONT_FAMILY;
+        ctx.font = `${el.fontSize || 20}px ${fontFamily}`;
+        ctx.fillStyle = stroke;
+        ctx.textBaseline = "top";
+        ctx.textAlign = (el.textAlign as CanvasTextAlign) || "left";
+        ctx.fillText(el.text || "", el.x, el.y);
       }
       
       ctx.globalAlpha = 1;
@@ -385,6 +403,8 @@ export function Canvas({ boardId }: CanvasProps) {
       canvasRef.current.style.cursor = "crosshair";
     } else if (activeTool === "eraser") {
       canvasRef.current.style.cursor = "crosshair";
+    } else if (activeTool === "text") {
+      canvasRef.current.style.cursor = "text";
     } else {
       canvasRef.current.style.cursor = "default";
     }
@@ -429,7 +449,7 @@ export function Canvas({ boardId }: CanvasProps) {
     const theme = useThemeStore.getState().theme;
     const defaultStroke = theme === "dark" ? "#f3f4f6" : "#1e1e1e";
     
-    const { strokeColor, fillColor, strokeWidth, strokeStyle, roughness, roundness, opacity } = useToolStore.getState();
+    const { strokeColor, fillColor, strokeWidth, strokeStyle, roughness, roundness, opacity, fontFamily, fontSize, textAlign } = useToolStore.getState();
     const finalStrokeColor = strokeColor === '#1e1e1e' || strokeColor === '#f3f4f6' ? defaultStroke : strokeColor;
 
     if (tool === "freedraw") {
@@ -456,6 +476,30 @@ export function Canvas({ boardId }: CanvasProps) {
         startY: y,
         mode: "freedraw",
       };
+      return;
+    }
+
+    if (tool === "text") {
+      const hit = hitTest(x, y);
+      if (hit && hit.type === "text") {
+        setEditingText({ id: hit.id, x: hit.x, y: hit.y, text: hit.text || "" });
+      } else {
+        const el = createElement({
+          type: "text",
+          x,
+          y,
+          width: 100,
+          height: 30,
+          strokeColor: finalStrokeColor,
+          fillColor: "transparent",
+          text: "",
+          fontSize: fontSize || 20,
+          fontFamily: fontFamily || 'sans-serif',
+          textAlign: textAlign || 'left',
+        });
+        useSceneStore.getState().addElement(el);
+        setEditingText({ id: el.id, x, y, text: "" });
+      }
       return;
     }
 
@@ -657,6 +701,40 @@ export function Canvas({ boardId }: CanvasProps) {
           updateIsDrawing(boardId, false);
           updateCursor(boardId, null, null);
         }}
+        onDoubleClick={(e) => {
+          if (userRole !== "AUDIENCE") {
+            const rect = canvasRef.current!.getBoundingClientRect();
+            const sx = e.clientX - rect.left;
+            const sy = e.clientY - rect.top;
+            const { x, y } = screenToWorld(sx, sy);
+            const hit = hitTest(x, y);
+            if (hit && hit.type === "text") {
+              setEditingText({ id: hit.id, x: hit.x, y: hit.y, text: hit.text || "" });
+            } else {
+              useToolStore.getState().setTool("text");
+              const theme = useThemeStore.getState().theme;
+              const defaultStroke = theme === "dark" ? "#f3f4f6" : "#1e1e1e";
+              const { strokeColor } = useToolStore.getState();
+              const finalStrokeColor = strokeColor === '#1e1e1e' || strokeColor === '#f3f4f6' ? defaultStroke : strokeColor;
+
+              const el = createElement({
+                type: "text",
+                x,
+                y,
+                width: 100,
+                height: 30,
+                strokeColor: finalStrokeColor,
+                fillColor: "transparent",
+                text: "",
+                fontSize: useToolStore.getState().fontSize || 20,
+                fontFamily: useToolStore.getState().fontFamily || 'sans-serif',
+                textAlign: useToolStore.getState().textAlign || 'left',
+              });
+              useSceneStore.getState().addElement(el);
+              setEditingText({ id: el.id, x, y, text: "" });
+            }
+          }
+        }}
         style={{
           width: "100vw",
           height: "100vh",
@@ -664,6 +742,44 @@ export function Canvas({ boardId }: CanvasProps) {
           touchAction: "none",
         }}
       />
+      {editingText && (
+        <textarea
+          ref={textAreaRef}
+          autoFocus
+          wrap="off"
+          value={editingText.text}
+          onChange={(e) => setEditingText({ ...editingText, text: e.target.value })}
+          onBlur={() => {
+            if (editingText.text.trim() === "") {
+              useSceneStore.getState().removeElement(editingText.id);
+            } else {
+              useSceneStore.getState().updateElement(editingText.id, {
+                text: editingText.text,
+              });
+            }
+            setEditingText(null);
+          }}
+          style={{
+            position: "absolute",
+            left: `${editingText.x * useViewportStore.getState().zoom + useViewportStore.getState().panX}px`,
+            top: `${editingText.y * useViewportStore.getState().zoom + useViewportStore.getState().panY}px`,
+            fontFamily: useSceneStore.getState().elements.find(e => e.id === editingText.id)?.fontFamily || CANVAS_FONT_FAMILY,
+            fontSize: `${(useSceneStore.getState().elements.find(e => e.id === editingText.id)?.fontSize || 20) * useViewportStore.getState().zoom}px`,
+            textAlign: useSceneStore.getState().elements.find(e => e.id === editingText.id)?.textAlign || "left",
+            color: useToolStore.getState().strokeColor === '#1e1e1e' || useToolStore.getState().strokeColor === '#f3f4f6' 
+              ? (useThemeStore.getState().theme === "dark" ? "#f3f4f6" : "#1e1e1e") 
+              : useToolStore.getState().strokeColor,
+            background: "transparent",
+            border: "none",
+            outline: "none",
+            resize: "none",
+            whiteSpace: "pre",
+            overflow: "hidden",
+            lineHeight: 1,
+            zIndex: 50,
+          }}
+        />
+      )}
     </>
   );
 }

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type Tool = 'hand' | 'selection' | 'rectangle' | 'ellipse' | 'freedraw' | 'line' | 'diamond' | 'eraser'
+export type Tool = 'hand' | 'selection' | 'rectangle' | 'ellipse' | 'freedraw' | 'line' | 'diamond' | 'eraser' | 'text'
 
 type ToolState = {
   activeTool: Tool
@@ -12,6 +12,9 @@ type ToolState = {
   roughness: number
   roundness: 'sharp' | 'round'
   opacity: number
+  fontFamily: string
+  fontSize: number
+  textAlign: 'left' | 'center' | 'right'
   setStyle: (style: Partial<ToolState>) => void
 }
 
@@ -25,5 +28,8 @@ export const useToolStore = create<ToolState>((set) => ({
   roughness: 1,
   roundness: 'sharp',
   opacity: 100,
+  fontFamily: 'sans-serif',
+  fontSize: 20,
+  textAlign: 'left',
   setStyle: (style) => set((state) => ({ ...state, ...style })),
 }))

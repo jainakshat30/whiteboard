@@ -16,6 +16,10 @@ export type Element = {
     opacity?: number
     zIndex?: number
     points?: { x: number; y: number }[]
+    text?: string
+    fontSize?: number
+    fontFamily?: string
+    textAlign?: 'left' | 'center' | 'right'
     version: number // bumped on every edit — useful later for sync/undo
 }
 

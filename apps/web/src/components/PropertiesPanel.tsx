@@ -11,6 +11,26 @@ const STROKE_STYLES = ['solid', 'dashed', 'dotted'] as const
 const ROUGHNESSES = [0, 1, 2.5]
 const ROUNDNESSES = ['sharp', 'round'] as const
 
+const FONT_FAMILIES = [
+  { id: 'sans-serif', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 20 12 4 20 20"/><line x1="8" y1="14" x2="16" y2="14"/></svg> },
+  { id: 'serif', icon: <span className="font-serif text-base font-medium leading-none">A</span> },
+  { id: 'monospace', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> },
+  { id: 'cursive', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg> },
+]
+
+const FONT_SIZES = [
+  { id: 16, label: 'S' },
+  { id: 20, label: 'M' },
+  { id: 28, label: 'L' },
+  { id: 36, label: 'XL' },
+]
+
+const TEXT_ALIGNS = [
+  { id: 'left', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg> },
+  { id: 'center', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="10" x2="6" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="18" y1="18" x2="6" y2="18"></line></svg> },
+  { id: 'right', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="21" y1="10" x2="7" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="7" y2="18"></line></svg> },
+]
+
 export function PropertiesPanel() {
   const elements = useSceneStore((s) => s.elements)
   const selectedId = useSceneStore((s) => s.selectedId)
@@ -24,13 +44,21 @@ export function PropertiesPanel() {
   const { activeTool, setStyle, ...defaultStyle } = useToolStore()
   const theme = useThemeStore((s) => s.theme)
   
-  // Decide whether to show panel: if a shape tool is selected, OR an element is selected
-  const showPanel = (activeTool !== 'hand' && activeTool !== 'selection' && activeTool !== 'eraser') || selectedId !== null
-  if (!showPanel) return null
-
   // Get active properties (either from selected element, or default preferences)
   const selectedEl = selectedId ? elements.find((e) => e.id === selectedId) : null
   const isEditing = !!selectedEl
+
+  // Decide whether to show panel: if a shape tool is selected, OR a shape element is selected
+  const isShapeTool = ['rectangle', 'ellipse', 'diamond', 'line', 'freedraw'].includes(activeTool)
+  const isShapeSelected = selectedEl && ['rectangle', 'ellipse', 'diamond', 'line', 'freedraw'].includes(selectedEl.type)
+  const isShapePanel = isShapeTool || isShapeSelected
+  
+  const isTextTool = activeTool === 'text'
+  const isTextSelected = selectedEl && selectedEl.type === 'text'
+  const isTextPanel = isTextTool || isTextSelected
+
+  const showPanel = isShapePanel || isTextPanel
+  if (!showPanel) return null
 
   const activeStroke = isEditing ? selectedEl.strokeColor : defaultStyle.strokeColor
   const activeFill = isEditing ? selectedEl.fillColor : defaultStyle.fillColor
@@ -39,6 +67,9 @@ export function PropertiesPanel() {
   const activeRoughness = isEditing ? (selectedEl.roughness ?? 1) : defaultStyle.roughness
   const activeRoundness = isEditing ? (selectedEl.roundness || 'sharp') : defaultStyle.roundness
   const activeOpacity = isEditing ? (selectedEl.opacity ?? 100) : defaultStyle.opacity
+  const activeFontFamily = isEditing ? (selectedEl.fontFamily || 'sans-serif') : defaultStyle.fontFamily
+  const activeFontSize = isEditing ? (selectedEl.fontSize || 20) : defaultStyle.fontSize
+  const activeTextAlign = isEditing ? (selectedEl.textAlign || 'left') : defaultStyle.textAlign
 
   const handleStyleChange = (updates: any) => {
     if (isEditing && selectedId) {
@@ -118,28 +149,102 @@ export function PropertiesPanel() {
         </div>
       </div>
 
-      {/* Stroke Width */}
-      <div className="flex flex-col gap-2">
-        <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Stroke width</label>
-        <div className="flex gap-2">
-          {STROKE_WIDTHS.map((width) => {
-            const isSelected = activeStrokeWidth === width
-            return (
-              <button
-                key={width}
-                onClick={() => handleStyleChange({ strokeWidth: width })}
-                className={`flex-1 h-8 flex items-center justify-center rounded-lg transition border ${
-                  isSelected 
-                    ? 'bg-indigo-100/50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' 
-                    : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
-                }`}
-              >
-                <div className="w-4 bg-currentColor rounded-full" style={{ height: width, backgroundColor: 'currentColor' }} />
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      {/* Font Settings (Text Only) */}
+      {isTextPanel && (
+        <>
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Font family</label>
+            <div className="flex gap-2">
+              {FONT_FAMILIES.map((font) => {
+                const isSelected = activeFontFamily === font.id
+                return (
+                  <button
+                    key={font.id}
+                    onClick={() => handleStyleChange({ fontFamily: font.id })}
+                    className={`flex-1 h-9 flex items-center justify-center rounded-lg transition border ${
+                      isSelected 
+                        ? 'bg-indigo-100/50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' 
+                        : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
+                    }`}
+                  >
+                    {font.icon}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Font size</label>
+            <div className="flex gap-2">
+              {FONT_SIZES.map((size) => {
+                const isSelected = activeFontSize === size.id
+                return (
+                  <button
+                    key={size.id}
+                    onClick={() => handleStyleChange({ fontSize: size.id })}
+                    className={`flex-1 h-9 flex items-center justify-center rounded-lg transition border text-xs font-medium ${
+                      isSelected 
+                        ? 'bg-indigo-100/50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' 
+                        : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
+                    }`}
+                  >
+                    {size.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Text align</label>
+            <div className="flex gap-2">
+              {TEXT_ALIGNS.map((align) => {
+                const isSelected = activeTextAlign === align.id
+                return (
+                  <button
+                    key={align.id}
+                    onClick={() => handleStyleChange({ textAlign: align.id })}
+                    className={`w-10 h-9 flex items-center justify-center rounded-lg transition border ${
+                      isSelected 
+                        ? 'bg-indigo-100/50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' 
+                        : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
+                    }`}
+                  >
+                    {align.icon}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Shape Settings (Shape Only) */}
+      {isShapePanel && (
+        <>
+          {/* Stroke Width */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Stroke width</label>
+            <div className="flex gap-2">
+              {STROKE_WIDTHS.map((width) => {
+                const isSelected = activeStrokeWidth === width
+                return (
+                  <button
+                    key={width}
+                    onClick={() => handleStyleChange({ strokeWidth: width })}
+                    className={`flex-1 h-8 flex items-center justify-center rounded-lg transition border ${
+                      isSelected 
+                        ? 'bg-indigo-100/50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' 
+                        : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
+                    }`}
+                  >
+                    <div className="w-4 bg-currentColor rounded-full" style={{ height: width, backgroundColor: 'currentColor' }} />
+                  </button>
+                )
+              })}
+            </div>
+          </div>
 
       {/* Stroke Style */}
       <div className="flex flex-col gap-2">
@@ -227,6 +332,8 @@ export function PropertiesPanel() {
           })}
         </div>
       </div>
+      </>
+      )}
 
       {/* Opacity */}
       <div className="flex flex-col gap-2">
