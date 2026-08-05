@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useSceneStore } from '@/store/scene'
+import { useThemeStore } from '@/store/theme'
 import { UserAuthButton } from '@/components/UserAuthButton'
 
 export function MainMenu() {
@@ -9,6 +10,15 @@ export function MainMenu() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const clearElements = useSceneStore((s) => s.clearElements)
+  const theme = useThemeStore((s) => s.theme)
+  const toggleTheme = useThemeStore((s) => s.toggleTheme)
+  const canvasBackgroundLight = useThemeStore((s) => s.canvasBackgroundLight)
+  const canvasBackgroundDark = useThemeStore((s) => s.canvasBackgroundDark)
+  const setCanvasBackgroundLight = useThemeStore((s) => s.setCanvasBackgroundLight)
+  const setCanvasBackgroundDark = useThemeStore((s) => s.setCanvasBackgroundDark)
+
+  const lightColors = ["#ffffff", "#f8f9fa", "#f0f4f8", "#fffbeb", "#fff1f2"]
+  const darkColors = ["#121212", "#1e1e1e", "#1e293b", "#2a2411", "#2a1616"]
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -60,6 +70,49 @@ export function MainMenu() {
               Reset the canvas
             </button>
             
+            <button
+              onClick={toggleTheme}
+              className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+            >
+              {theme === 'light' ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="4"/>
+                  <path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+                </svg>
+              )}
+              {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+            </button>
+            
+            <div className="my-2 h-px w-full bg-neutral-200 dark:bg-neutral-800" />
+            
+            <div className="px-3 py-2 flex flex-col gap-3">
+              <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                Canvas background
+              </span>
+              <div className="flex items-center gap-2">
+                {(theme === 'light' ? lightColors : darkColors).map((color) => {
+                  const isActive = theme === 'light' ? canvasBackgroundLight === color : canvasBackgroundDark === color;
+                  return (
+                    <button
+                      key={color}
+                      onClick={() => theme === 'light' ? setCanvasBackgroundLight(color) : setCanvasBackgroundDark(color)}
+                      className={`w-7 h-7 rounded-lg transition-transform hover:scale-110 border ${
+                        isActive 
+                          ? 'border-indigo-500 ring-2 ring-indigo-500/50 ring-offset-2 ring-offset-white dark:ring-offset-neutral-900' 
+                          : 'border-neutral-200 dark:border-neutral-700'
+                      }`}
+                      style={{ backgroundColor: color }}
+                      title={`Background ${color}`}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+
             <div className="my-2 h-px w-full bg-neutral-200 dark:bg-neutral-800" />
             
             <div className="px-2 pb-2 pt-1 flex justify-center">

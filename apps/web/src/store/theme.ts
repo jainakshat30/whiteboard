@@ -4,13 +4,19 @@ export type Theme = 'light' | 'dark'
 
 type ThemeState = {
   theme: Theme
+  canvasBackgroundLight: string
+  canvasBackgroundDark: string
   setTheme: (theme: Theme) => void
   toggleTheme: () => void
+  setCanvasBackgroundLight: (color: string) => void
+  setCanvasBackgroundDark: (color: string) => void
   initTheme: () => void
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
   theme: 'light',
+  canvasBackgroundLight: '#ffffff',
+  canvasBackgroundDark: '#121212',
   setTheme: (theme) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('theme', theme)
@@ -27,12 +33,24 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     const next = current === 'light' ? 'dark' : 'light'
     get().setTheme(next)
   },
+  setCanvasBackgroundLight: (color) => {
+    if (typeof window !== 'undefined') localStorage.setItem('canvasBgLight', color)
+    set({ canvasBackgroundLight: color })
+  },
+  setCanvasBackgroundDark: (color) => {
+    if (typeof window !== 'undefined') localStorage.setItem('canvasBgDark', color)
+    set({ canvasBackgroundDark: color })
+  },
   initTheme: () => {
     if (typeof window === 'undefined') return
     const saved = localStorage.getItem('theme') as Theme | null
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
     const initial = saved || (prefersDark ? 'dark' : 'light')
-    get().setTheme(initial)
+    
+    const bgLight = localStorage.getItem('canvasBgLight') || '#ffffff'
+    const bgDark = localStorage.getItem('canvasBgDark') || '#121212'
+    
+    set({ theme: initial, canvasBackgroundLight: bgLight, canvasBackgroundDark: bgDark })
   },
 }))
 
