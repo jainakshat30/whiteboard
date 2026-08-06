@@ -11,6 +11,7 @@ export interface DiagramNode {
   label: string;
   type: string;
   metadata?: Record<string, any>;
+  children?: string[]; // IDs of child nodes for compound nodes
 }
 
 export interface DiagramEdge {
@@ -20,6 +21,7 @@ export interface DiagramEdge {
   label?: string;
   type?: string;
   metadata?: Record<string, any>;
+  routing?: 'straight' | 'orthogonal' | 'curved' | 'manhattan' | 'spline';
 }
 
 export interface DiagramGraph {
@@ -27,4 +29,29 @@ export interface DiagramGraph {
   edges: Record<string, DiagramEdge>;
   type: DiagramType;
   metadata: Record<string, any>;
+}
+
+export interface PositionedNode extends DiagramNode {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface PositionedGraph {
+  nodes: Record<string, PositionedNode>;
+  edges: Record<string, DiagramEdge>;
+  type: DiagramType;
+  metadata: Record<string, any>;
+  layoutMetadata?: LayoutMetadata;
+}
+
+export interface LayoutMetadata {
+  layoutEngine: string;
+  layoutStrategy: string;
+  boundingBox: { width: number; height: number };
+  diagramWidth: number;
+  diagramHeight: number;
+  layoutDuration: number;
+  warnings: string[];
 }
