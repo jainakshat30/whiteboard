@@ -1,0 +1,14 @@
+import { ILayoutStrategy } from './ILayoutStrategy';
+
+export class VerticalFlowStrategy implements ILayoutStrategy {
+  getAlgorithm(): string {
+    return 'layered';
+  }
+
+  applyAlgorithmSpecificOptions(engineOptions: Record<string, any>): void {
+    engineOptions['elk.algorithm'] = 'layered';
+    if (!engineOptions['elk.direction']) {
+      engineOptions['elk.direction'] = 'DOWN';
+    }
+  }
+}
