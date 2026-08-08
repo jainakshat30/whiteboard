@@ -8,10 +8,12 @@ import { DiagramEngine } from '@/services/ai-diagram/DiagramEngine'
 import { ElkLayoutEngine } from '@/services/ai-diagram/layout/ElkLayoutEngine'
 import { DiagramCanvasIntegration } from '@/services/ai-diagram/integration/DiagramCanvasIntegration'
 import { VerticalFlowStrategy } from '@/services/ai-diagram/layout/strategies/VerticalFlowStrategy'
+import { AiDiagramModal } from './AiDiagramModal'
 
 export function MainMenu() {
   const [isOpen, setIsOpen] = useState(false)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const clearElements = useSceneStore((s) => s.clearElements)
   const theme = useThemeStore((s) => s.theme)
@@ -60,6 +62,21 @@ export function MainMenu() {
 
         {isOpen && (
           <div className="flex flex-col min-w-[200px] rounded-xl bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md p-2 shadow-xl border border-neutral-200/80 dark:border-neutral-800 text-neutral-800 dark:text-neutral-100 transition-all">
+            <button
+              onClick={() => {
+                setIsOpen(false)
+                setIsAiModalOpen(true)
+              }}
+              className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition cursor-pointer mb-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2v2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M20 12h2"/><path d="m17.66 17.66 1.41 1.41"/><path d="M12 20v2"/><path d="m4.93 19.07 1.41-1.41"/><path d="M2 12h2"/><path d="m6.34 6.34 1.41 1.41"/>
+              </svg>
+              Generate with AI
+            </button>
+            
+            <div className="my-1 h-px w-full bg-neutral-200 dark:bg-neutral-800" />
+
             <button
               onClick={() => setIsConfirmOpen(true)}
               className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
@@ -195,6 +212,11 @@ export function MainMenu() {
           </div>
         </div>
       )}
+
+      <AiDiagramModal 
+        isOpen={isAiModalOpen} 
+        onClose={() => setIsAiModalOpen(false)} 
+      />
     </>
   )
 }
