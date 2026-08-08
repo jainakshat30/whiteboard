@@ -4,6 +4,10 @@ import { useState, useRef, useEffect } from 'react'
 import { useSceneStore } from '@/store/scene'
 import { useThemeStore } from '@/store/theme'
 import { UserAuthButton } from '@/components/UserAuthButton'
+import { DiagramEngine } from '@/services/ai-diagram/DiagramEngine'
+import { ElkLayoutEngine } from '@/services/ai-diagram/layout/ElkLayoutEngine'
+import { DiagramCanvasIntegration } from '@/services/ai-diagram/integration/DiagramCanvasIntegration'
+import { VerticalFlowStrategy } from '@/services/ai-diagram/layout/strategies/VerticalFlowStrategy'
 
 export function MainMenu() {
   const [isOpen, setIsOpen] = useState(false)
@@ -68,6 +72,44 @@ export function MainMenu() {
                 <line x1="14" x2="14" y1="11" y2="17"/>
               </svg>
               Reset the canvas
+            </button>
+            
+            <button
+              onClick={async () => {
+                setIsOpen(false)
+                
+                const engine = new DiagramEngine('FLOWCHART')
+                
+                engine.addNode({ id: 'start', type: 'start', label: 'Start' })
+                engine.addNode({ id: 'process', type: 'process', label: 'Process' })
+                engine.addNode({ id: 'decision', type: 'decision', label: 'Decision' })
+                engine.addNode({ id: 'success', type: 'step', label: 'Success' })
+                engine.addNode({ id: 'error', type: 'step', label: 'Error' })
+                
+                engine.addEdge({ id: 'e1', source: 'start', target: 'process' })
+                engine.addEdge({ id: 'e2', source: 'process', target: 'decision' })
+                engine.addEdge({ id: 'e3', source: 'decision', target: 'success', label: 'Yes' })
+                engine.addEdge({ id: 'e4', source: 'decision', target: 'error', label: 'No' })
+                
+                const graph = engine.getGraph()
+                
+                const layoutEngine = new ElkLayoutEngine(new VerticalFlowStrategy())
+                const positionedGraph = await layoutEngine.layout(graph, {
+                  direction: 'TB',
+                  horizontalSpacing: 50,
+                  verticalSpacing: 50
+                })
+                
+                DiagramCanvasIntegration.insertDiagram(positionedGraph, {
+                  origin: { x: 400, y: 100 }
+                })
+              }}
+              className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition cursor-pointer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3v18"/><path d="m5 10 7-7 7 7"/>
+              </svg>
+              Test Diagram (Phase 4)
             </button>
             
             <button
