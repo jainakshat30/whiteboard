@@ -24,13 +24,13 @@ describe('DiagramCanvasIntegration (Phase 4)', () => {
 
   const getMockGraph = (): PositionedGraph => ({
     type: 'FLOWCHART',
-    nodes: {
-      n1: { id: 'n1', type: 'process', label: 'Processing', x: 10, y: 20, width: 100, height: 50 },
-      n2: { id: 'n2', type: 'decision', label: 'Valid?', x: 100, y: 200, width: 100, height: 100 }
-    },
-    edges: {
-      e1: { id: 'e1', source: 'n1', target: 'n2', label: 'Yes' }
-    },
+    nodes: [
+      { id: 'n1', type: 'process', label: 'Processing', x: 10, y: 20, width: 100, height: 50 },
+      { id: 'n2', type: 'decision', label: 'Valid?', x: 100, y: 200, width: 100, height: 100 }
+    ],
+    edges: [
+      { id: 'e1', source: 'n1', target: 'n2', label: 'Yes' }
+    ],
     metadata: {
       diagramNodeType: 'FLOWCHART'
     },

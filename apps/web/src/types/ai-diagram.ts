@@ -25,8 +25,8 @@ export interface DiagramEdge {
 }
 
 export interface DiagramGraph {
-  nodes: Record<string, DiagramNode>;
-  edges: Record<string, DiagramEdge>;
+  nodes: DiagramNode[];
+  edges: DiagramEdge[];
   type: DiagramType;
   metadata: Record<string, any>;
 }
@@ -39,8 +39,8 @@ export interface PositionedNode extends DiagramNode {
 }
 
 export interface PositionedGraph {
-  nodes: Record<string, PositionedNode>;
-  edges: Record<string, DiagramEdge>;
+  nodes: PositionedNode[];
+  edges: DiagramEdge[];
   type: DiagramType;
   metadata: Record<string, any>;
   layoutMetadata?: LayoutMetadata;
