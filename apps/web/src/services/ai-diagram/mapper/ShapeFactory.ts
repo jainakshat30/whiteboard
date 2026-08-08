@@ -18,6 +18,8 @@ export class ShapeFactory {
     ['group', 'rectangle'],
     ['step', 'rectangle'],
     ['condition', 'diamond'],
+    ['input', 'rectangle'],
+    ['output', 'rectangle'],
   ]);
 
   /**

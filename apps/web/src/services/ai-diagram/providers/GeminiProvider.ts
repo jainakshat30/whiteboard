@@ -13,7 +13,7 @@ export class GeminiProvider implements IAIProvider {
   }
 
   async generateStructured<T>(request: StructuredGenerationRequest<T>): Promise<T> {
-    const model = request.model || 'gemini-2.5-flash';
+    const model = request.model || 'gemini-3.5-flash';
 
     // We define a generic JSON schema structure that Gemini supports for diagram generation.
     // While we use Zod for application-side validation, providing this schema to Gemini

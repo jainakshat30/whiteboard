@@ -66,3 +66,16 @@ export function getAdaptiveStrokeColor(strokeColor: string, theme: Theme): strin
   }
   return strokeColor
 }
+
+export function getAdaptiveFillColor(fillColor: string, theme: Theme): string {
+  const isDefaultLightFill = fillColor === '#ffffff' || fillColor === '#f3f4f6'
+  const isDefaultDarkFill = fillColor === '#1e1e1e' || fillColor === '#121212' || fillColor === '#111827'
+
+  if (theme === 'dark' && isDefaultLightFill) {
+    return '#1e1e1e' // Darken white fills in dark mode
+  }
+  if (theme === 'light' && isDefaultDarkFill) {
+    return '#ffffff' // Lighten dark fills in light mode
+  }
+  return fillColor
+}
