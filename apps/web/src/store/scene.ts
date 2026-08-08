@@ -8,7 +8,6 @@ type SceneState = {
   selectedId: string | null
   initBoard: (boardId: string) => void
   addElement: (element: Element) => void
-  addElements: (elements: Element[]) => void
   updateElement: (id: string, patch: Partial<Element>) => void
   removeElement: (id: string) => void
   clearElements: () => void
@@ -51,19 +50,6 @@ export const useSceneStore = create<SceneState>((set) => ({
       const maxZIndex = Array.from(yElements.values()).reduce((max, e) => Math.max(max, e.zIndex || 0), 0)
       el.zIndex = maxZIndex + 1
       yElements.set(el.id, el)
-    })
-  },
-  addElements: (elementsToAdd) => {
-    const boardId = useSceneStore.getState().boardId
-    if (!boardId || elementsToAdd.length === 0) return
-    
-    const { ydoc, yElements } = getBoardConnection(boardId)
-    ydoc.transact(() => {
-      let maxZIndex = Array.from(yElements.values()).reduce((max, e) => Math.max(max, e.zIndex || 0), 0)
-      elementsToAdd.forEach((el) => {
-        el.zIndex = ++maxZIndex
-        yElements.set(el.id, el)
-      })
     })
   },
   removeElement: (id) => {
