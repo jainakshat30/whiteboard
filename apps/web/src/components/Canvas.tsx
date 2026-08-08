@@ -16,7 +16,7 @@ import {
 import { getWsTokenAction } from "@/app/actions/boards";
 import { useConnectionStore } from "@/store/yjs";
 import { CANVAS_FONT_FAMILY } from "@/config/font";
-import { useThemeStore, getAdaptiveStrokeColor } from "@/store/theme";
+import { useThemeStore, getAdaptiveStrokeColor, getAdaptiveFillColor } from "@/store/theme";
 import { useViewportStore } from "@/store/viewport";
 import { UserNameModal } from "@/components/UserNameModal";
 
@@ -129,7 +129,7 @@ export function Canvas({ boardId }: CanvasProps) {
         roughness: el.roughness ?? 1.2,
         strokeLineDash: el.strokeStyle === 'dashed' ? [8, 8] : el.strokeStyle === 'dotted' ? [2, 6] : undefined,
         seed,
-        fill: el.fillColor !== "transparent" ? el.fillColor : undefined,
+        fill: el.fillColor !== "transparent" ? getAdaptiveFillColor(el.fillColor, theme) : undefined,
         fillStyle: "hachure",
         hachureAngle: 60,
         hachureGap: 4,
@@ -182,6 +182,16 @@ export function Canvas({ boardId }: CanvasProps) {
           ...roughOptions,
           fill: undefined
         });
+      }
+      
+      if (el.text) {
+        ctx.fillStyle = stroke;
+        ctx.font = '16px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const midX = el.x + el.width / 2;
+        const midY = el.y + el.height / 2;
+        ctx.fillText(el.text, midX, midY);
       }
       
       ctx.globalAlpha = 1;

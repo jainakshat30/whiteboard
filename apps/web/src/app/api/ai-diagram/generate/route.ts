@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     
     // Fallback generic error to avoid leaking stack traces or sensitive provider internals
     return NextResponse.json(
-      { error: 'AI_PROVIDER_ERROR', message: 'Failed to generate diagram due to an internal AI provider error.' },
+      { error: 'AI_PROVIDER_ERROR', message: errorMessage },
       { status: 500 }
     );
   }
