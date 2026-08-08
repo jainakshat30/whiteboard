@@ -44,26 +44,19 @@ export class GenerateDiagramService {
           throw new Error(`DIAGRAM_VALIDATION_ERROR: Exceeded maximum edge count (${MAX_EDGES}).`);
         }
 
-        // Convert LLM array format into the Record format required by DiagramEngine
+        // Convert LLM array format into the engine graph format
+        // Since Phase 5.6, these formats perfectly match (arrays)
         const engineGraphFormat: DiagramGraph = {
           type: request.diagramType, // Override with the requested type to be safe
           metadata: rawLlmResponse.metadata || {},
-          nodes: {},
-          edges: {}
-        };
-
-        for (const node of rawLlmResponse.nodes) {
-          engineGraphFormat.nodes[node.id] = {
+          nodes: rawLlmResponse.nodes.map(node => ({
             id: node.id,
             label: node.label || '',
             type: node.type,
             metadata: node.metadata,
             children: node.children
-          };
-        }
-
-        for (const edge of rawLlmResponse.edges) {
-          engineGraphFormat.edges[edge.id] = {
+          })),
+          edges: rawLlmResponse.edges.map(edge => ({
             id: edge.id,
             source: edge.source,
             target: edge.target,
@@ -71,8 +64,8 @@ export class GenerateDiagramService {
             type: edge.type,
             metadata: edge.metadata,
             routing: edge.routing
-          };
-        }
+          }))
+        };
 
         // Step 2: Layer 2 (Semantic) Validation via DiagramEngine
         const engine = new DiagramEngine(request.diagramType);

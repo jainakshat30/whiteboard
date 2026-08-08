@@ -8,8 +8,8 @@ export class EdgeMapper {
    * Calculates boundary-to-boundary connections.
    */
   public static map(edge: DiagramEdge, graph: PositionedGraph): Element {
-    const sourceNode = graph.nodes[edge.source];
-    const targetNode = graph.nodes[edge.target];
+    const sourceNode = graph.nodes.find(n => n.id === edge.source);
+    const targetNode = graph.nodes.find(n => n.id === edge.target);
 
     if (!sourceNode || !targetNode) {
       throw new Error(`[EdgeMapper] Edge ${edge.id} references invalid source or target`);
