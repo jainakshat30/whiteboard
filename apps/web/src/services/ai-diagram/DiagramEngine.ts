@@ -110,6 +110,30 @@ export class DiagramEngine {
   }
 
   /**
+   * Updates properties of an existing node.
+   * @throws Error if the node ID does not exist.
+   */
+  public updateNode(nodeId: string, changes: Partial<Omit<DiagramNode, 'id'>>): void {
+    const node = this.findNode(nodeId);
+    if (!node) {
+      throw new Error(`DiagramEngine: Node with ID '${nodeId}' does not exist.`);
+    }
+    Object.assign(node, changes);
+  }
+
+  /**
+   * Updates properties of an existing edge.
+   * @throws Error if the edge ID does not exist.
+   */
+  public updateEdge(edgeId: string, changes: Partial<Omit<DiagramEdge, 'id' | 'source' | 'target'>>): void {
+    const edge = this.findEdge(edgeId);
+    if (!edge) {
+      throw new Error(`DiagramEngine: Edge with ID '${edgeId}' does not exist.`);
+    }
+    Object.assign(edge, changes);
+  }
+
+  /**
    * Validates the graph for structural integrity (missing references, duplicates).
    * @returns An array of validation error messages. Empty if valid.
    */
