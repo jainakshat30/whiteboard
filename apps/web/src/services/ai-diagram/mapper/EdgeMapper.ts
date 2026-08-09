@@ -22,7 +22,7 @@ export class EdgeMapper {
       throw new Error(`[EdgeMapper] Target node ${targetNode.id} is missing layout positions`);
     }
 
-    const { startX, startY, endX, endY } = this.calculateBoundaryPoints(sourceNode, targetNode);
+    const { startX, startY, endX, endY } = this.calculateBoundaryPoints(sourceNode, targetNode, graph.type);
 
     // For the current whiteboard rendering engine, a 'line' element is drawn from 
     // (x, y) to (x + width, y + height).
@@ -52,7 +52,7 @@ export class EdgeMapper {
   /**
    * Computes the best boundary connection points between two nodes based on their relative centers.
    */
-  private static calculateBoundaryPoints(source: PositionedNode, target: PositionedNode) {
+  private static calculateBoundaryPoints(source: PositionedNode, target: PositionedNode, diagramType?: string) {
     const sCx = source.x! + source.width! / 2;
     const sCy = source.y! + source.height! / 2;
     const tCx = target.x! + target.width! / 2;
@@ -66,7 +66,15 @@ export class EdgeMapper {
     let endX = tCx;
     let endY = tCy;
 
-    if (Math.abs(dx) > Math.abs(dy)) {
+    // Determine orientation based on diagram type if possible
+    let isHorizontal = Math.abs(dx) > Math.abs(dy);
+    if (diagramType === 'ER_DIAGRAM' || diagramType === 'SEQUENCE_DIAGRAM') {
+      isHorizontal = true;
+    } else if (diagramType === 'FLOWCHART') {
+      isHorizontal = false;
+    }
+
+    if (isHorizontal) {
       // Horizontal orientation
       if (dx > 0) {
         // Target is to the right

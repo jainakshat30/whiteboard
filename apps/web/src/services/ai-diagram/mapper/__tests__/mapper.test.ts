@@ -103,6 +103,7 @@ describe('Diagram Mapper (Phase 3)', () => {
 
   test('Horizontal boundary connection', () => {
     const graph = getEmptyGraph();
+    graph.type = 'ER_DIAGRAM';
     
     // Target is horizontally right of Source
     graph.nodes.push({ id: 'n1', type: 'process', label: '', x: 100, y: 100, width: 50, height: 100 });

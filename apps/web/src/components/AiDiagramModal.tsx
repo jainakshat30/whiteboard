@@ -35,7 +35,7 @@ export function AiDiagramModal({ isOpen, onClose }: AiDiagramModalProps) {
     if (!prompt.trim()) return;
     
     // Attempt generation. The hook places it on the canvas automatically.
-    const success = await generate(prompt, diagramType, { x: window.innerWidth / 2 - 200, y: window.innerHeight / 2 - 200 });
+    const success = await generate(prompt, diagramType);
     
     if (success) {
       setPrompt('');
