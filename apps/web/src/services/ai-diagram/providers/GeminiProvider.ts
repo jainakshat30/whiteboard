@@ -18,7 +18,7 @@ export class GeminiProvider implements IAIProvider {
     // We define a generic JSON schema structure that Gemini supports for diagram generation.
     // While we use Zod for application-side validation, providing this schema to Gemini
     // greatly improves its structured output reliability.
-    const responseSchema = {
+    const defaultDiagramSchema = {
       type: Type.OBJECT,
       properties: {
         type: { type: Type.STRING },
@@ -55,16 +55,23 @@ export class GeminiProvider implements IAIProvider {
       required: ['type', 'nodes', 'edges']
     };
 
+    const finalSchema = request.jsonSchema || defaultDiagramSchema;
+
+    const config: any = {
+      systemInstruction: request.systemPrompt,
+      temperature: request.temperature ?? 0.2,
+      responseMimeType: 'application/json',
+    };
+
+    if (request.jsonSchema) {
+      config.responseSchema = request.jsonSchema;
+    }
+
     try {
       const response = await this.ai.models.generateContent({
         model,
         contents: request.userPrompt,
-        config: {
-          systemInstruction: request.systemPrompt,
-          temperature: request.temperature ?? 0.2,
-          responseMimeType: 'application/json',
-          responseSchema: responseSchema,
-        }
+        config
       });
 
       if (!response.text) {

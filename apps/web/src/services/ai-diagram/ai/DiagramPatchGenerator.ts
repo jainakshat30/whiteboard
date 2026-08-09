@@ -1,4 +1,5 @@
 import { IAIProvider } from '../providers/IAIProvider';
+import { Type } from '@google/genai';
 import { DiagramGraph } from '@/types/ai-diagram';
 import { DiagramEditResponse, DiagramEditResponseSchema } from '../patch/DiagramPatch';
 import { DiagramEditPromptBuilder } from './DiagramEditPromptBuilder';
@@ -36,6 +37,7 @@ export class DiagramPatchGenerator {
           systemPrompt,
           userPrompt,
           responseSchema: DiagramEditResponseSchema,
+          jsonSchema: undefined,
           temperature: 0.1 // Lower temperature for more deterministic, structured editing output
         });
 
@@ -65,6 +67,6 @@ export class DiagramPatchGenerator {
       }
     }
 
-    throw new Error(`DiagramPatchGenerator: Failed to generate a valid patch after ${maxRetries} attempts.`);
+    throw new Error(`DiagramPatchGenerator: Failed to generate a valid patch after ${maxRetries} attempts. Last error: ${validationErrors?.join(', ')}`);
   }
 }
