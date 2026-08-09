@@ -16,6 +16,13 @@ export class ClarificationRequiredError extends Error {
   }
 }
 
+export class UnsupportedRequestError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UnsupportedRequestError';
+  }
+}
+
 export interface PreparedDiagramEdit {
   diagramId: string;
   patch: DiagramPatch;
@@ -66,6 +73,10 @@ export class DiagramEditService {
 
     if (editResponse.status === 'NEEDS_CLARIFICATION') {
       throw new ClarificationRequiredError(editResponse.message);
+    }
+
+    if (editResponse.status === 'UNSUPPORTED_REQUEST') {
+      throw new UnsupportedRequestError(editResponse.message);
     }
 
     const patch = editResponse.patch;

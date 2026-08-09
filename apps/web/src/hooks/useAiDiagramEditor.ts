@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSceneStore } from '@/store/scene';
-import { DiagramEditService, ClarificationRequiredError, PreparedDiagramEdit } from '@/services/ai-diagram/editor/DiagramEditService';
+import { DiagramEditService, ClarificationRequiredError, UnsupportedRequestError, PreparedDiagramEdit } from '@/services/ai-diagram/editor/DiagramEditService';
 import { GeminiProvider } from '@/services/ai-diagram/providers/GeminiProvider';
 
 export function useAiDiagramEditor() {
@@ -40,7 +40,12 @@ export function useAiDiagramEditor() {
       setPreparedEdit(prepared);
       return true;
     } catch (err: any) {
-      if (err instanceof ClarificationRequiredError || err.name === 'ClarificationRequiredError') {
+      if (
+        err instanceof ClarificationRequiredError || 
+        err.name === 'ClarificationRequiredError' ||
+        err instanceof UnsupportedRequestError ||
+        err.name === 'UnsupportedRequestError'
+      ) {
         setClarification(err.message);
       } else {
         console.error('AI Diagram Prepare Error:', err);

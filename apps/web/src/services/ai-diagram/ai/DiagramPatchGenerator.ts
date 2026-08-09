@@ -39,7 +39,7 @@ export class DiagramPatchGenerator {
           temperature: 0.1 // Lower temperature for more deterministic, structured editing output
         });
 
-        if (response.status === 'NEEDS_CLARIFICATION') {
+        if (response.status === 'NEEDS_CLARIFICATION' || response.status === 'UNSUPPORTED_REQUEST') {
           // LLM correctly identified ambiguity or an unsupported request. Return immediately.
           return response;
         }

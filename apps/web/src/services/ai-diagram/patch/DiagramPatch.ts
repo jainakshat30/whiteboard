@@ -76,6 +76,10 @@ export const DiagramEditResponseSchema = z.discriminatedUnion('status', [
   z.object({
     status: z.literal('NEEDS_CLARIFICATION'),
     message: z.string().min(1, 'Clarification message cannot be empty')
+  }),
+  z.object({
+    status: z.literal('UNSUPPORTED_REQUEST'),
+    message: z.string().min(1, 'Unsupported request explanation cannot be empty')
   })
 ]);
 
