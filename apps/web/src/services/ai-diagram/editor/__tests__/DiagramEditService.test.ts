@@ -20,6 +20,11 @@ describe('DiagramEditService (Phase 6.5)', () => {
   let baseElements: Element[];
   const diagramId = 'test-diagram-123';
 
+  const editDiagramHelper = async (dId: string, instruction: string, els: Element[], ai: any) => {
+    const prepared = await DiagramEditService.prepareEdit(dId, instruction, els, ai);
+    return DiagramEditService.applyPreparedEdit(prepared, els);
+  };
+
   beforeEach(() => {
     mockReplaceElements = vi.fn();
     (useSceneStore.getState as any).mockReturnValue({
@@ -48,7 +53,7 @@ describe('DiagramEditService (Phase 6.5)', () => {
       }
     });
 
-    const newElements = await DiagramEditService.editDiagram(diagramId, 'Rename Auth to Authentication Service', baseElements, aiProvider);
+    const newElements = await editDiagramHelper(diagramId, 'Rename Auth to Authentication Service', baseElements, aiProvider);
 
     // Assert atomic update was called
     expect(mockReplaceElements).toHaveBeenCalledTimes(1);
@@ -81,7 +86,7 @@ describe('DiagramEditService (Phase 6.5)', () => {
       }
     });
 
-    const newElements = await DiagramEditService.editDiagram(diagramId, 'Add Redis between Auth and DB', baseElements, aiProvider);
+    const newElements = await editDiagramHelper(diagramId, 'Add Redis between Auth and DB', baseElements, aiProvider);
 
     const [idsToRemove, elementsToAdd] = mockReplaceElements.mock.calls[0];
     
@@ -106,7 +111,7 @@ describe('DiagramEditService (Phase 6.5)', () => {
       }
     });
 
-    const newElements = await DiagramEditService.editDiagram(diagramId, 'Remove DB', baseElements, aiProvider);
+    const newElements = await editDiagramHelper(diagramId, 'Remove DB', baseElements, aiProvider);
 
     const [idsToRemove, elementsToAdd] = mockReplaceElements.mock.calls[0];
     
@@ -129,7 +134,7 @@ describe('DiagramEditService (Phase 6.5)', () => {
     });
 
     await expect(
-      DiagramEditService.editDiagram(diagramId, 'Remove Auth', baseElements, aiProvider)
+      editDiagramHelper(diagramId, 'Remove Auth', baseElements, aiProvider)
     ).rejects.toThrow(/Failed to generate a valid patch/); // Generator validation throws and exhausts retries
 
     // VERY IMPORTANT: replaceElements MUST NEVER BE CALLED if an error occurred
@@ -148,7 +153,7 @@ describe('DiagramEditService (Phase 6.5)', () => {
       patch: { operations: [{ op: 'UPDATE_NODE', nodeId: 'api', changes: { label: 'New API' } }] }
     });
 
-    await DiagramEditService.editDiagram(diagramId, 'Rename API', allElements, aiProvider);
+    await editDiagramHelper(diagramId, 'Rename API', allElements, aiProvider);
 
     const [idsToRemove] = mockReplaceElements.mock.calls[0];
     
@@ -162,7 +167,7 @@ describe('DiagramEditService (Phase 6.5)', () => {
       patch: { operations: [{ op: 'ADD_NODE', node: { id: 'new', label: 'New', type: 'process' } }] }
     });
 
-    await DiagramEditService.editDiagram(diagramId, 'Add new node', baseElements, aiProvider);
+    await editDiagramHelper(diagramId, 'Add new node', baseElements, aiProvider);
 
     const [, elementsToAdd] = mockReplaceElements.mock.calls[0];
     
@@ -173,8 +178,8 @@ describe('DiagramEditService (Phase 6.5)', () => {
   });
 
   test('19, 20. EMPTY INSTRUCTION / NO DIAGRAM ID', async () => {
-    await expect(DiagramEditService.editDiagram('', 'test', baseElements, aiProvider)).rejects.toThrow();
-    await expect(DiagramEditService.editDiagram(diagramId, '', baseElements, aiProvider)).rejects.toThrow();
+    await expect(editDiagramHelper('', 'test', baseElements, aiProvider)).rejects.toThrow();
+    await expect(editDiagramHelper(diagramId, '', baseElements, aiProvider)).rejects.toThrow();
     
     // No modifications occurred
     expect(mockReplaceElements).toHaveBeenCalledTimes(0);
@@ -193,7 +198,7 @@ describe('DiagramEditService (Phase 6.5)', () => {
     });
 
     await expect(
-      DiagramEditService.editDiagram(diagramId, 'Fail mapper', baseElements, aiProvider)
+      editDiagramHelper(diagramId, 'Fail mapper', baseElements, aiProvider)
     ).rejects.toThrow(/Mapper failed/);
 
     expect(mockReplaceElements).toHaveBeenCalledTimes(0); // Whiteboard untouched
