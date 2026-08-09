@@ -67,3 +67,16 @@ export type UpdateEdgeOperation = z.infer<typeof UpdateEdgeOperationSchema>;
 
 export type DiagramPatchOperation = z.infer<typeof DiagramPatchOperationSchema>;
 export type DiagramPatch = z.infer<typeof DiagramPatchSchema>;
+
+export const DiagramEditResponseSchema = z.discriminatedUnion('status', [
+  z.object({
+    status: z.literal('SUCCESS'),
+    patch: DiagramPatchSchema
+  }),
+  z.object({
+    status: z.literal('NEEDS_CLARIFICATION'),
+    message: z.string().min(1, 'Clarification message cannot be empty')
+  })
+]);
+
+export type DiagramEditResponse = z.infer<typeof DiagramEditResponseSchema>;
