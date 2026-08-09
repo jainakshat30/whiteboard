@@ -15,8 +15,8 @@ export class DiagramEngine {
 
   constructor(type: DiagramType = 'FLOWCHART') {
     this.graph = {
-      nodes: {},
-      edges: {},
+      nodes: [],
+      edges: [],
       type,
       metadata: {}
     };
@@ -29,15 +29,23 @@ export class DiagramEngine {
     return JSON.parse(JSON.stringify(this.graph));
   }
 
+  private findNode(nodeId: string): DiagramNode | undefined {
+    return this.graph.nodes.find(n => n.id === nodeId);
+  }
+
+  private findEdge(edgeId: string): DiagramEdge | undefined {
+    return this.graph.edges.find(e => e.id === edgeId);
+  }
+
   /**
    * Adds a new node to the graph.
    * @throws Error if the node ID already exists.
    */
   public addNode(node: DiagramNode): void {
-    if (this.graph.nodes[node.id]) {
+    if (this.findNode(node.id)) {
       throw new Error(`DiagramEngine: Node with ID '${node.id}' already exists.`);
     }
-    this.graph.nodes[node.id] = { ...node };
+    this.graph.nodes.push({ ...node });
   }
 
   /**
@@ -45,19 +53,17 @@ export class DiagramEngine {
    * @throws Error if the node ID does not exist.
    */
   public removeNode(nodeId: string): void {
-    if (!this.graph.nodes[nodeId]) {
+    if (!this.findNode(nodeId)) {
       throw new Error(`DiagramEngine: Node with ID '${nodeId}' does not exist.`);
     }
 
     // Remove any edges connected to this node
-    for (const edgeId in this.graph.edges) {
-      const edge = this.graph.edges[edgeId];
-      if (edge.source === nodeId || edge.target === nodeId) {
-        this.removeEdge(edgeId);
-      }
-    }
+    this.graph.edges = this.graph.edges.filter(
+      edge => edge.source !== nodeId && edge.target !== nodeId
+    );
 
-    delete this.graph.nodes[nodeId];
+    // Remove the node
+    this.graph.nodes = this.graph.nodes.filter(n => n.id !== nodeId);
   }
 
   /**
@@ -65,19 +71,19 @@ export class DiagramEngine {
    * @throws Error if the edge ID exists, or if source/target nodes are missing.
    */
   public addEdge(edge: DiagramEdge): void {
-    if (this.graph.edges[edge.id]) {
+    if (this.findEdge(edge.id)) {
       throw new Error(`DiagramEngine: Edge with ID '${edge.id}' already exists.`);
     }
     
     // Validate that the referenced nodes exist
-    if (!this.graph.nodes[edge.source]) {
+    if (!this.findNode(edge.source)) {
       throw new Error(`DiagramEngine: Source node '${edge.source}' does not exist for edge '${edge.id}'.`);
     }
-    if (!this.graph.nodes[edge.target]) {
+    if (!this.findNode(edge.target)) {
       throw new Error(`DiagramEngine: Target node '${edge.target}' does not exist for edge '${edge.id}'.`);
     }
 
-    this.graph.edges[edge.id] = { ...edge };
+    this.graph.edges.push({ ...edge });
   }
 
   /**
@@ -85,10 +91,10 @@ export class DiagramEngine {
    * @throws Error if the edge ID does not exist.
    */
   public removeEdge(edgeId: string): void {
-    if (!this.graph.edges[edgeId]) {
+    if (!this.findEdge(edgeId)) {
       throw new Error(`DiagramEngine: Edge with ID '${edgeId}' does not exist.`);
     }
-    delete this.graph.edges[edgeId];
+    this.graph.edges = this.graph.edges.filter(e => e.id !== edgeId);
   }
 
   /**
@@ -96,28 +102,66 @@ export class DiagramEngine {
    * @throws Error if the node ID does not exist.
    */
   public renameNode(nodeId: string, newLabel: string): void {
-    if (!this.graph.nodes[nodeId]) {
+    const node = this.findNode(nodeId);
+    if (!node) {
       throw new Error(`DiagramEngine: Node with ID '${nodeId}' does not exist.`);
     }
-    this.graph.nodes[nodeId].label = newLabel;
+    node.label = newLabel;
   }
 
   /**
-   * Validates the graph for structural integrity (missing references).
-   * Note: Duplicate IDs are inherently prevented by the Record structure and addNode/addEdge checks.
+   * Updates properties of an existing node.
+   * @throws Error if the node ID does not exist.
+   */
+  public updateNode(nodeId: string, changes: Partial<Omit<DiagramNode, 'id'>>): void {
+    const node = this.findNode(nodeId);
+    if (!node) {
+      throw new Error(`DiagramEngine: Node with ID '${nodeId}' does not exist.`);
+    }
+    Object.assign(node, changes);
+  }
+
+  /**
+   * Updates properties of an existing edge.
+   * @throws Error if the edge ID does not exist.
+   */
+  public updateEdge(edgeId: string, changes: Partial<Omit<DiagramEdge, 'id' | 'source' | 'target'>>): void {
+    const edge = this.findEdge(edgeId);
+    if (!edge) {
+      throw new Error(`DiagramEngine: Edge with ID '${edgeId}' does not exist.`);
+    }
+    Object.assign(edge, changes);
+  }
+
+  /**
+   * Validates the graph for structural integrity (missing references, duplicates).
    * @returns An array of validation error messages. Empty if valid.
    */
   public validate(): string[] {
     const errors: string[] = [];
 
-    // Ensure all edges reference valid nodes (catch-all in case of manual tampering before import)
-    for (const edgeId in this.graph.edges) {
-      const edge = this.graph.edges[edgeId];
-      if (!this.graph.nodes[edge.source]) {
-        errors.push(`Missing Reference: Edge '${edgeId}' references missing source node '${edge.source}'.`);
+    // Check for duplicate nodes
+    const nodeIds = new Set<string>();
+    for (const node of this.graph.nodes) {
+      if (nodeIds.has(node.id)) {
+        errors.push(`Duplicate Node ID: '${node.id}'.`);
       }
-      if (!this.graph.nodes[edge.target]) {
-        errors.push(`Missing Reference: Edge '${edgeId}' references missing target node '${edge.target}'.`);
+      nodeIds.add(node.id);
+    }
+
+    // Check for duplicate edges and validate references
+    const edgeIds = new Set<string>();
+    for (const edge of this.graph.edges) {
+      if (edgeIds.has(edge.id)) {
+        errors.push(`Duplicate Edge ID: '${edge.id}'.`);
+      }
+      edgeIds.add(edge.id);
+
+      if (!nodeIds.has(edge.source)) {
+        errors.push(`Missing Reference: Edge '${edge.id}' references missing source node '${edge.source}'.`);
+      }
+      if (!nodeIds.has(edge.target)) {
+        errors.push(`Missing Reference: Edge '${edge.id}' references missing target node '${edge.target}'.`);
       }
     }
 
@@ -140,8 +184,8 @@ export class DiagramEngine {
       const parsedGraph = JSON.parse(jsonString) as DiagramGraph;
 
       // Basic schema check
-      if (!parsedGraph.nodes || !parsedGraph.edges || !parsedGraph.type) {
-        throw new Error("Invalid schema structure. Missing required properties: nodes, edges, or type.");
+      if (!parsedGraph.nodes || !Array.isArray(parsedGraph.nodes) || !parsedGraph.edges || !Array.isArray(parsedGraph.edges) || !parsedGraph.type) {
+        throw new Error("Invalid schema structure. Missing required properties or nodes/edges are not arrays.");
       }
 
       // Temporarily store old graph in case of validation failure

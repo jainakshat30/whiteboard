@@ -16,7 +16,7 @@ import {
 import { getWsTokenAction } from "@/app/actions/boards";
 import { useConnectionStore } from "@/store/yjs";
 import { CANVAS_FONT_FAMILY } from "@/config/font";
-import { useThemeStore, getAdaptiveStrokeColor } from "@/store/theme";
+import { useThemeStore, getAdaptiveStrokeColor, getAdaptiveFillColor } from "@/store/theme";
 import { useViewportStore } from "@/store/viewport";
 import { UserNameModal } from "@/components/UserNameModal";
 
@@ -70,6 +70,8 @@ export function Canvas({ boardId }: CanvasProps) {
     origY?: number;
     origWidth?: number;
     origHeight?: number;
+    groupMove?: boolean;
+    origPositions?: { id: string, origX: number, origY: number, points?: {x: number, y: number}[] }[];
   } | null>(null);
 
   function screenToWorld(sx: number, sy: number) {
@@ -129,7 +131,7 @@ export function Canvas({ boardId }: CanvasProps) {
         roughness: el.roughness ?? 1.2,
         strokeLineDash: el.strokeStyle === 'dashed' ? [8, 8] : el.strokeStyle === 'dotted' ? [2, 6] : undefined,
         seed,
-        fill: el.fillColor !== "transparent" ? el.fillColor : undefined,
+        fill: el.fillColor !== "transparent" ? getAdaptiveFillColor(el.fillColor, theme) : undefined,
         fillStyle: "hachure",
         hachureAngle: 60,
         hachureGap: 4,
@@ -184,6 +186,29 @@ export function Canvas({ boardId }: CanvasProps) {
         });
       }
       
+      if (el.text) {
+        ctx.fillStyle = stroke;
+        ctx.font = '16px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const midX = el.x + el.width / 2;
+        const midY = el.y + el.height / 2;
+        
+        if (el.type === 'line') {
+          const metrics = ctx.measureText(el.text);
+          const padding = 6;
+          const bgWidth = metrics.width + padding * 2;
+          const bgHeight = 24;
+          
+          const theme = useThemeStore.getState().theme;
+          ctx.fillStyle = theme === 'dark' ? '#1e1e1e' : '#ffffff';
+          ctx.fillRect(midX - bgWidth / 2, midY - bgHeight / 2, bgWidth, bgHeight);
+          ctx.fillStyle = stroke;
+        }
+        
+        ctx.fillText(el.text, midX, midY);
+      }
+      
       ctx.globalAlpha = 1;
     }
 
@@ -211,33 +236,59 @@ export function Canvas({ boardId }: CanvasProps) {
         drawElement(ctx, el);
       }
 
-      const selectedId = useSceneStore.getState().selectedId;
-      const selected = elements.find((el) => el.id === selectedId);
-      if (selected) {
-        const handleColor = isDark ? "#a5b4fc" : "#4f46e5";
-        ctx.strokeStyle = handleColor;
-        ctx.lineWidth = 1 / zoom;
-        ctx.setLineDash([4 / zoom, 4 / zoom]);
-        ctx.strokeRect(
-          selected.x - 4,
-          selected.y - 4,
-          selected.width + 8,
-          selected.height + 8,
-        );
-        ctx.setLineDash([]);
+      const selectedDiagramId = useSceneStore.getState().selectedDiagramId;
+      if (selectedDiagramId) {
+        const groupEls = elements.filter(el => el.metadata?.diagramId === selectedDiagramId);
+        if (groupEls.length > 0) {
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          for (const el of groupEls) {
+            minX = Math.min(minX, el.x);
+            minY = Math.min(minY, el.y);
+            maxX = Math.max(maxX, el.x + el.width);
+            maxY = Math.max(maxY, el.y + el.height);
+          }
+          
+          const handleColor = isDark ? "#a5b4fc" : "#4f46e5";
+          ctx.strokeStyle = handleColor;
+          ctx.lineWidth = 1 / zoom;
+          ctx.setLineDash([4 / zoom, 4 / zoom]);
+          ctx.strokeRect(
+            minX - 4,
+            minY - 4,
+            maxX - minX + 8,
+            maxY - minY + 8,
+          );
+          ctx.setLineDash([]);
+        }
+      } else {
+        const selectedId = useSceneStore.getState().selectedId;
+        const selected = elements.find((el) => el.id === selectedId);
+        if (selected) {
+          const handleColor = isDark ? "#a5b4fc" : "#4f46e5";
+          ctx.strokeStyle = handleColor;
+          ctx.lineWidth = 1 / zoom;
+          ctx.setLineDash([4 / zoom, 4 / zoom]);
+          ctx.strokeRect(
+            selected.x - 4,
+            selected.y - 4,
+            selected.width + 8,
+            selected.height + 8,
+          );
+          ctx.setLineDash([]);
 
-        ctx.fillStyle = isDark ? "#1e1b4b" : "#ffffff";
-        ctx.strokeStyle = handleColor;
-        ctx.lineWidth = 1 / zoom;
-        const positions = [
-          [selected.x, selected.y],
-          [selected.x + selected.width, selected.y],
-          [selected.x, selected.y + selected.height],
-          [selected.x + selected.width, selected.y + selected.height],
-        ];
-        for (const [hx, hy] of positions) {
-          ctx.fillRect(hx - 4, hy - 4, 8 / zoom, 8 / zoom);
-          ctx.strokeRect(hx - 4, hy - 4, 8 / zoom, 8 / zoom);
+          ctx.fillStyle = isDark ? "#1e1b4b" : "#ffffff";
+          ctx.strokeStyle = handleColor;
+          ctx.lineWidth = 1 / zoom;
+          const positions = [
+            [selected.x, selected.y],
+            [selected.x + selected.width, selected.y],
+            [selected.x, selected.y + selected.height],
+            [selected.x + selected.width, selected.y + selected.height],
+          ];
+          for (const [hx, hy] of positions) {
+            ctx.fillRect(hx - 4, hy - 4, 8 / zoom, 8 / zoom);
+            ctx.strokeRect(hx - 4, hy - 4, 8 / zoom, 8 / zoom);
+          }
         }
       }
 
@@ -310,10 +361,16 @@ export function Canvas({ boardId }: CanvasProps) {
           }
         }
       } else if (e.key === "Delete" || e.key === "Backspace") {
-        const selectedId = useSceneStore.getState().selectedId;
-        if (selectedId) {
+        const state = useSceneStore.getState();
+        if (state.selectedDiagramId) {
           e.preventDefault();
-          useSceneStore.getState().removeElement(selectedId);
+          const groupIds = state.elements
+            .filter(el => el.metadata?.diagramId === state.selectedDiagramId)
+            .map(el => el.id);
+          state.removeElements(groupIds);
+        } else if (state.selectedId) {
+          e.preventDefault();
+          state.removeElement(state.selectedId);
         }
       }
     }
@@ -517,17 +574,34 @@ export function Canvas({ boardId }: CanvasProps) {
       const hit = hitTest(x, y);
       if (hit) {
         updateIsDrawing(boardId, true);
-        useSceneStore.getState().setSelectedId(hit.id);
-        draggingRef.current = {
-          id: hit.id,
-          startX: x,
-          startY: y,
-          mode: "move",
-          origX: hit.x,
-          origY: hit.y,
-        };
+        if (hit.metadata?.diagramId) {
+          useSceneStore.getState().setSelectedDiagramId(hit.metadata.diagramId as string);
+          
+          const groupEls = useSceneStore.getState().elements.filter(el => el.metadata?.diagramId === hit.metadata!.diagramId);
+          const origPositions = groupEls.map(el => ({ id: el.id, origX: el.x, origY: el.y, points: el.points }));
+          
+          draggingRef.current = {
+            id: hit.id,
+            startX: x,
+            startY: y,
+            mode: "move",
+            groupMove: true,
+            origPositions
+          };
+        } else {
+          useSceneStore.getState().setSelectedId(hit.id);
+          draggingRef.current = {
+            id: hit.id,
+            startX: x,
+            startY: y,
+            mode: "move",
+            origX: hit.x,
+            origY: hit.y,
+          };
+        }
       } else {
         useSceneStore.getState().setSelectedId(null);
+        useSceneStore.getState().setSelectedDiagramId(null);
       }
     }
   }
@@ -569,10 +643,25 @@ export function Canvas({ boardId }: CanvasProps) {
     } else if (drag.mode === "move") {
       const dx = x - drag.startX;
       const dy = y - drag.startY;
-      useSceneStore.getState().updateElement(drag.id, {
-        x: drag.origX! + dx,
-        y: drag.origY! + dy,
-      });
+      
+      if (drag.groupMove && drag.origPositions) {
+        const patches = drag.origPositions.map(op => {
+          const patch: Partial<Element> = {
+            x: op.origX + dx,
+            y: op.origY + dy,
+          };
+          if (op.points) {
+            patch.points = op.points.map(p => ({ x: p.x + dx, y: p.y + dy }));
+          }
+          return { id: op.id, patch };
+        });
+        useSceneStore.getState().updateElements(patches);
+      } else {
+        useSceneStore.getState().updateElement(drag.id, {
+          x: drag.origX! + dx,
+          y: drag.origY! + dy,
+        });
+      }
     } else if (drag.mode === "resize" && drag.handle) {
       const dx = x - drag.startX;
       const dy = y - drag.startY;

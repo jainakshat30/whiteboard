@@ -4,23 +4,23 @@ import { DiagramGraph, DiagramNode, DiagramEdge } from '../../../../types/ai-dia
 
 describe('Auto Layout Benchmark', () => {
   const generateGraph = (numNodes: number): DiagramGraph => {
-    const nodes: Record<string, DiagramNode> = {};
-    const edges: Record<string, DiagramEdge> = {};
+    const nodes: DiagramNode[] = [];
+    const edges: DiagramEdge[] = [];
 
     for (let i = 0; i < numNodes; i++) {
       const id = `n${i}`;
-      nodes[id] = { id, label: `Node ${i}`, type: 'step' };
+      nodes.push({ id, label: `Node ${i}`, type: 'step' });
       
       // Connect to the previous node to create a linear graph, plus a few random connections for complexity
       if (i > 0) {
         const edgeId = `e${i - 1}-${i}`;
-        edges[edgeId] = { id: edgeId, source: `n${i - 1}`, target: id };
+        edges.push({ id: edgeId, source: `n${i - 1}`, target: id });
       }
       
       if (i > 5 && i % 3 === 0) {
         const randomTarget = `n${Math.floor(Math.random() * (i - 1))}`;
         const randomEdgeId = `erand-${i}-${randomTarget}`;
-        edges[randomEdgeId] = { id: randomEdgeId, source: id, target: randomTarget };
+        edges.push({ id: randomEdgeId, source: id, target: randomTarget });
       }
     }
 
@@ -50,8 +50,8 @@ describe('Auto Layout Benchmark', () => {
     
     // Check coordinate stability by running a second time
     const positioned2 = await engine.layout(graph);
-    expect(positioned.nodes['n0'].x).toBe(positioned2.nodes['n0'].x);
-    expect(positioned.nodes[`n${numNodes - 1}`].y).toBe(positioned2.nodes[`n${numNodes - 1}`].y);
+    expect(positioned.nodes.find(n => n.id === 'n0')!.x).toBe(positioned2.nodes.find(n => n.id === 'n0')!.x);
+    expect(positioned.nodes.find(n => n.id === `n${numNodes - 1}`)!.y).toBe(positioned2.nodes.find(n => n.id === `n${numNodes - 1}`)!.y);
     
     return duration;
   };

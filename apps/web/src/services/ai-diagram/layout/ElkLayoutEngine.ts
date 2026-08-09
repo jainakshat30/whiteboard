@@ -2,7 +2,7 @@ import ELK, { ElkNode, ElkExtendedEdge } from 'elkjs/lib/elk.bundled.js';
 import { DiagramGraph, PositionedGraph, PositionedNode, LayoutMetadata } from '../../../types/ai-diagram';
 import { ILayoutEngine, LayoutOptions } from './ILayoutEngine';
 import { ILayoutStrategy } from './strategies/ILayoutStrategy';
-import { isGraphEmpty, handleEmptyGraph } from './helpers';
+import { isGraphEmpty, handleEmptyGraph, calculateNodeDimensions } from './helpers';
 import { DEFAULT_NODE_WIDTH, DEFAULT_NODE_HEIGHT, HORIZONTAL_SPACING, VERTICAL_SPACING, DEFAULT_MARGIN } from './constants';
 
 export class ElkLayoutEngine implements ILayoutEngine {
@@ -43,11 +43,15 @@ export class ElkLayoutEngine implements ILayoutEngine {
 
     // Map DiagramGraph to ELK JSON format recursively (to support compound nodes)
     const mapNode = (nodeId: string): ElkNode => {
-      const node = graph.nodes[nodeId];
+      const node = graph.nodes.find(n => n.id === nodeId);
+      if (!node) return { id: nodeId };
+      
+      const dimensions = calculateNodeDimensions(node.label || '');
+
       const elkNode: ElkNode = {
         id: node.id,
-        width: config.nodeWidth,
-        height: config.nodeHeight
+        width: dimensions.width,
+        height: dimensions.height
       };
 
       if (node.children && node.children.length > 0) {
@@ -59,15 +63,15 @@ export class ElkLayoutEngine implements ILayoutEngine {
 
     // Only map top-level nodes (nodes not present in any other node's children array)
     const allChildren = new Set<string>();
-    Object.values(graph.nodes).forEach(n => {
+    graph.nodes.forEach(n => {
       if (n.children) {
         n.children.forEach(c => allChildren.add(c));
       }
     });
-    const topLevelNodes = Object.values(graph.nodes).filter(n => !allChildren.has(n.id));
+    const topLevelNodes = graph.nodes.filter(n => !allChildren.has(n.id));
     const elkNodes: ElkNode[] = topLevelNodes.map(node => mapNode(node.id));
 
-    const elkEdges: ElkExtendedEdge[] = Object.values(graph.edges).map(edge => ({
+    const elkEdges: ElkExtendedEdge[] = graph.edges.map(edge => ({
       id: edge.id,
       sources: [edge.source],
       targets: [edge.target]
@@ -104,25 +108,26 @@ export class ElkLayoutEngine implements ILayoutEngine {
 
       const layoutedGraph = await this.elk.layout(elkGraph);
       
-      const positionedNodes: Record<string, PositionedNode> = {};
+      const positionedNodes: PositionedNode[] = [];
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
       const extractPositions = (elkNodesList: ElkNode[], xOffset = 0, yOffset = 0) => {
         elkNodesList.forEach((elkNode) => {
-          const originalNode = graphClone.nodes[elkNode.id];
+          const originalNode = graphClone.nodes.find(n => n.id === elkNode.id);
           if (originalNode) {
             const absoluteX = xOffset + (elkNode.x || 0);
             const absoluteY = yOffset + (elkNode.y || 0);
+            // Use the dimensions from the elk node, which were calculated dynamically
             const width = elkNode.width || config.nodeWidth;
             const height = elkNode.height || config.nodeHeight;
 
-            positionedNodes[elkNode.id] = {
+            positionedNodes.push({
               ...originalNode,
               x: absoluteX,
               y: absoluteY,
               width,
               height
-            };
+            });
 
             // Update bounding box
             minX = Math.min(minX, absoluteX);

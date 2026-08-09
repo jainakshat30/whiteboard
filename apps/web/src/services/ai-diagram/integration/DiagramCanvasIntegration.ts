@@ -35,10 +35,11 @@ export class DiagramCanvasIntegration {
       // Apply UUID
       finalEl.id = idMap.get(el.id)!;
       
-      // Update metadata with diagram instance ID
+      // Update metadata with diagram instance ID and type
       finalEl.metadata = {
         ...finalEl.metadata,
         diagramId,
+        diagramType: graph.type,
       };
 
       // If it's an edge (mapped to 'line'), remap its structural connections
@@ -60,6 +61,82 @@ export class DiagramCanvasIntegration {
 
     // 4. Insert into store (single transaction)
     useSceneStore.getState().addElements(finalElements);
+
+    return finalElements;
+  }
+
+  /**
+   * Updates an existing diagram atomically.
+   * Maps the new PositionedGraph, applies the existing diagram's origin,
+   * and replaces the old elements with the new ones in a single Yjs transaction.
+   */
+  public static updateDiagram(graph: PositionedGraph, diagramId: string, existingElements: Element[]): Element[] {
+    // 1. Calculate existing center
+    let originX = 0;
+    let originY = 0;
+    let oldCenterX = 0;
+    let oldCenterY = 0;
+    
+    if (existingElements.length > 0) {
+      const minX = Math.min(...existingElements.map(e => e.x));
+      const minY = Math.min(...existingElements.map(e => e.y));
+      const maxX = Math.max(...existingElements.map(e => e.x + e.width));
+      const maxY = Math.max(...existingElements.map(e => e.y + e.height));
+      oldCenterX = (minX + maxX) / 2;
+      oldCenterY = (minY + maxY) / 2;
+    }
+
+    // 2. Map to raw elements
+    const rawElements = DiagramMapper.map(graph);
+
+    // 3. Calculate new center to compute offsets
+    if (existingElements.length > 0 && rawElements.length > 0) {
+      const newMinX = Math.min(...rawElements.map(e => e.x));
+      const newMinY = Math.min(...rawElements.map(e => e.y));
+      const newMaxX = Math.max(...rawElements.map(e => e.x + e.width));
+      const newMaxY = Math.max(...rawElements.map(e => e.y + e.height));
+      const newWidth = newMaxX - newMinX;
+      const newHeight = newMaxY - newMinY;
+
+      originX = oldCenterX - (newWidth / 2) - newMinX;
+      originY = oldCenterY - (newHeight / 2) - newMinY;
+    }
+    
+    // 3. ID collision and remapping (preserve existing mapper UUID strategy)
+    const idMap = new Map<string, string>();
+    for (const el of rawElements) {
+      idMap.set(el.id, crypto.randomUUID());
+    }
+
+    const finalElements: Element[] = rawElements.map(el => {
+      const finalEl = { ...el };
+      finalEl.id = idMap.get(el.id)!;
+      
+      finalEl.metadata = {
+        ...finalEl.metadata,
+        diagramId,
+        diagramType: graph.type,
+      };
+
+      if (finalEl.type === 'line' && finalEl.metadata) {
+        if (finalEl.metadata.sourceId) {
+          finalEl.metadata.sourceId = idMap.get(finalEl.metadata.sourceId as string) || finalEl.metadata.sourceId;
+        }
+        if (finalEl.metadata.targetId) {
+          finalEl.metadata.targetId = idMap.get(finalEl.metadata.targetId as string) || finalEl.metadata.targetId;
+        }
+      }
+
+      // Apply Origin offset
+      finalEl.x += originX;
+      finalEl.y += originY;
+
+      return finalEl;
+    });
+
+    // 4. Atomic Replacement in Scene Store
+    const oldElementIds = existingElements.map(e => e.id);
+    useSceneStore.getState().replaceElements(oldElementIds, finalElements);
 
     return finalElements;
   }

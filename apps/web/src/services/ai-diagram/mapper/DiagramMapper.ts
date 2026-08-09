@@ -12,15 +12,15 @@ export class DiagramMapper {
     const elements: Element[] = [];
 
     // Map Nodes
-    const nodeKeys = Object.keys(graph.nodes).sort();
-    for (const key of nodeKeys) {
-      elements.push(NodeMapper.map(graph.nodes[key]));
+    const sortedNodes = [...graph.nodes].sort((a, b) => a.id.localeCompare(b.id));
+    for (const node of sortedNodes) {
+      elements.push(NodeMapper.map(node));
     }
 
     // Map Edges
-    const edgeKeys = Object.keys(graph.edges).sort();
-    for (const key of edgeKeys) {
-      elements.push(EdgeMapper.map(graph.edges[key], graph));
+    const sortedEdges = [...graph.edges].sort((a, b) => a.id.localeCompare(b.id));
+    for (const edge of sortedEdges) {
+      elements.push(EdgeMapper.map(edge, graph));
     }
 
     return elements;
