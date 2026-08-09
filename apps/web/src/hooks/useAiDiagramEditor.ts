@@ -1,28 +1,30 @@
 import { useState } from 'react';
 import { useSceneStore } from '@/store/scene';
-import { DiagramEditService } from '@/services/ai-diagram/editor/DiagramEditService';
+import { DiagramEditService, ClarificationRequiredError } from '@/services/ai-diagram/editor/DiagramEditService';
 import { GeminiProvider } from '@/services/ai-diagram/providers/GeminiProvider';
 
 export function useAiDiagramEditor() {
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [clarification, setClarification] = useState<string | null>(null);
 
   const selectedDiagramId = useSceneStore((state) => state.selectedDiagramId);
   const elements = useSceneStore((state) => state.elements);
 
-  const editDiagram = async (instruction: string) => {
+  const editDiagram = async (instruction: string): Promise<boolean> => {
     if (!selectedDiagramId) {
       setError('No AI diagram is selected.');
-      return;
+      return false;
     }
 
     if (!instruction || instruction.trim() === '') {
       setError('Instruction cannot be empty.');
-      return;
+      return false;
     }
 
     setIsEditing(true);
     setError(null);
+    setClarification(null);
 
     try {
       const provider = new GeminiProvider();
@@ -32,9 +34,15 @@ export function useAiDiagramEditor() {
         elements,
         provider
       );
+      return true;
     } catch (err: any) {
-      console.error('AI Diagram Edit Error:', err);
-      setError(err.message || 'An error occurred while editing the diagram.');
+      if (err instanceof ClarificationRequiredError || err.name === 'ClarificationRequiredError') {
+        setClarification(err.message);
+      } else {
+        console.error('AI Diagram Edit Error:', err);
+        setError(err.message || 'An error occurred while editing the diagram.');
+      }
+      return false;
     } finally {
       setIsEditing(false);
     }
@@ -43,7 +51,10 @@ export function useAiDiagramEditor() {
   return {
     isEditing,
     error,
+    clarification,
     editDiagram,
     canEdit: !!selectedDiagramId,
+    clearError: () => setError(null),
+    clearClarification: () => setClarification(null),
   };
 }

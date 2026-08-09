@@ -14,6 +14,7 @@ const ROUNDNESSES = ['sharp', 'round'] as const
 export function PropertiesPanel() {
   const elements = useSceneStore((s) => s.elements)
   const selectedId = useSceneStore((s) => s.selectedId)
+  const selectedDiagramId = useSceneStore((s) => s.selectedDiagramId)
   const updateElement = useSceneStore((s) => s.updateElement)
   const removeElement = useSceneStore((s) => s.removeElement)
   const bringToFront = useSceneStore((s) => s.bringToFront)
@@ -25,7 +26,7 @@ export function PropertiesPanel() {
   const theme = useThemeStore((s) => s.theme)
   
   // Decide whether to show panel: if a shape tool is selected, OR an element is selected
-  const showPanel = (activeTool !== 'hand' && activeTool !== 'selection' && activeTool !== 'eraser') || selectedId !== null
+  const showPanel = (activeTool !== 'hand' && activeTool !== 'selection' && activeTool !== 'eraser') || selectedId !== null || selectedDiagramId !== null
   if (!showPanel) return null
 
   // Get active properties (either from selected element, or default preferences)
@@ -63,188 +64,237 @@ export function PropertiesPanel() {
   }
 
   const isDark = theme === 'dark'
+  
+  // If we only have a diagram selected and no specific element, and we're not using a drawing tool,
+  // we might want to hide the regular element styling tools.
+  const showStylingTools = isEditing || (activeTool !== 'hand' && activeTool !== 'selection' && activeTool !== 'eraser')
 
   return (
     <div className="fixed left-4 top-1/2 -translate-y-1/2 w-[220px] bg-white/95 dark:bg-[#232329]/95 backdrop-blur-md rounded-2xl shadow-xl border border-neutral-200/80 dark:border-neutral-800 p-4 text-neutral-800 dark:text-neutral-100 flex flex-col gap-5 overflow-y-auto max-h-[90vh] custom-scrollbar z-40">
       
-      {/* Stroke Color */}
-      <div className="flex flex-col gap-2">
-        <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Stroke</label>
-        <div className="flex flex-wrap gap-2">
-          {STROKE_COLORS.map((color) => {
-            const isSelected = activeStroke === color || (color === '#1e1e1e' && (activeStroke === '#1e1e1e' || activeStroke === '#f3f4f6'))
-            const renderColor = color === '#1e1e1e' ? (isDark ? '#e5e7eb' : '#1e1e1e') : color
-            return (
-              <button
-                key={color}
-                onClick={() => handleStyleChange({ strokeColor: color })}
-                className={`w-6 h-6 rounded-md transition-transform hover:scale-110 border ${
-                  isSelected ? 'border-indigo-500 ring-2 ring-indigo-500/40 ring-offset-1 dark:ring-offset-neutral-900' : 'border-neutral-200 dark:border-neutral-700'
-                }`}
-                style={{ backgroundColor: renderColor }}
-                title="Stroke color"
-              />
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Fill Color */}
-      <div className="flex flex-col gap-2">
-        <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Background</label>
-        <div className="flex flex-wrap gap-2">
-          {FILL_COLORS.map((color) => {
-            const isSelected = activeFill === color
-            const isTransparent = color === 'transparent'
-            return (
-              <button
-                key={color}
-                onClick={() => handleStyleChange({ fillColor: color })}
-                className={`w-6 h-6 rounded-md transition-transform hover:scale-110 border relative overflow-hidden flex items-center justify-center ${
-                  isSelected ? 'border-indigo-500 ring-2 ring-indigo-500/40 ring-offset-1 dark:ring-offset-neutral-900' : 'border-neutral-200 dark:border-neutral-700'
-                }`}
-                style={{ backgroundColor: isTransparent ? undefined : (color === '#1e1e1e' && isDark ? '#e5e7eb' : color) }}
-                title="Fill color"
-              >
-                {isTransparent && (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-40">
-                    <line x1="3" y1="3" x2="21" y2="21" />
-                    <line x1="21" y1="3" x2="3" y2="21" />
-                  </svg>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Stroke Width */}
-      <div className="flex flex-col gap-2">
-        <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Stroke width</label>
-        <div className="flex gap-2">
-          {STROKE_WIDTHS.map((width) => {
-            const isSelected = activeStrokeWidth === width
-            return (
-              <button
-                key={width}
-                onClick={() => handleStyleChange({ strokeWidth: width })}
-                className={`flex-1 h-8 flex items-center justify-center rounded-lg transition border ${
-                  isSelected 
-                    ? 'bg-indigo-100/50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' 
-                    : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
-                }`}
-              >
-                <div className="w-4 bg-currentColor rounded-full" style={{ height: width, backgroundColor: 'currentColor' }} />
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Stroke Style */}
-      <div className="flex flex-col gap-2">
-        <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Stroke style</label>
-        <div className="flex gap-2">
-          {STROKE_STYLES.map((style) => {
-            const isSelected = activeStrokeStyle === style
-            return (
-              <button
-                key={style}
-                onClick={() => handleStyleChange({ strokeStyle: style })}
-                className={`flex-1 h-8 flex items-center justify-center rounded-lg transition border ${
-                  isSelected 
-                    ? 'bg-indigo-100/50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' 
-                    : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
-                }`}
-              >
-                {style === 'solid' && <div className="w-5 h-[2px] bg-currentColor" />}
-                {style === 'dashed' && (
-                  <div className="flex gap-1">
-                    <div className="w-2 h-[2px] bg-currentColor" /><div className="w-2 h-[2px] bg-currentColor" />
-                  </div>
-                )}
-                {style === 'dotted' && (
-                  <div className="flex gap-[3px]">
-                    <div className="w-[3px] h-[3px] rounded-full bg-currentColor" />
-                    <div className="w-[3px] h-[3px] rounded-full bg-currentColor" />
-                    <div className="w-[3px] h-[3px] rounded-full bg-currentColor" />
-                  </div>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Sloppiness */}
-      <div className="flex flex-col gap-2">
-        <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Sloppiness</label>
-        <div className="flex gap-2">
-          {ROUGHNESSES.map((r, i) => {
-            const isSelected = activeRoughness === r
-            return (
-              <button
-                key={r}
-                onClick={() => handleStyleChange({ roughness: r })}
-                className={`flex-1 h-8 flex items-center justify-center rounded-lg transition border ${
-                  isSelected 
-                    ? 'bg-indigo-100/50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' 
-                    : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
-                }`}
-              >
-                {i === 0 && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12h16" /></svg>}
-                {i === 1 && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12s4-4 8 0 8 0 8 0" /></svg>}
-                {i === 2 && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12s3-6 8 0 8-3 8-3" /></svg>}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Edges */}
-      <div className="flex flex-col gap-2">
-        <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Edges</label>
-        <div className="flex gap-2">
-          {ROUNDNESSES.map((round) => {
-            const isSelected = activeRoundness === round
-            return (
-              <button
-                key={round}
-                onClick={() => handleStyleChange({ roundness: round })}
-                className={`w-[60px] h-8 flex items-center justify-center rounded-lg transition border ${
-                  isSelected 
-                    ? 'bg-indigo-100/50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' 
-                    : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
-                }`}
-              >
-                {round === 'sharp' ? (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="3 3"><rect x="3" y="3" width="18" height="18" /></svg>
-                ) : (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="3 3"><rect x="3" y="3" width="18" height="18" rx="5" /></svg>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Opacity */}
-      <div className="flex flex-col gap-2">
-        <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Opacity</label>
-        <div className="flex flex-col gap-1 relative">
-          <input 
-            type="range" 
-            min="0" max="100" 
-            value={activeOpacity}
-            onChange={(e) => handleStyleChange({ opacity: parseInt(e.target.value) })}
-            className="w-full accent-indigo-500"
-          />
-          <div className="flex justify-between text-[10px] text-neutral-400 font-mono mt-1">
-            <span>0</span>
-            <span>100</span>
+      {/* Diagram Actions (Only when diagram is selected) */}
+      {selectedDiagramId && !isEditing && (
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-medium text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>
+            </svg>
+            AI Diagram Actions
+          </label>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('open-ai-edit-modal'))
+              }}
+              className="h-8 flex items-center justify-center gap-2 rounded-lg transition border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 cursor-pointer text-xs font-medium"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/>
+              </svg>
+              Edit with AI
+            </button>
+            <button 
+              onClick={() => {
+                const elsToRemove = elements.filter(el => el.metadata?.diagramId === selectedDiagramId).map(el => el.id)
+                if (elsToRemove.length > 0) {
+                  useSceneStore.getState().removeElements(elsToRemove)
+                }
+              }} 
+              className="h-8 flex items-center justify-center gap-2 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition text-neutral-600 dark:text-neutral-400 text-xs font-medium border border-transparent hover:border-red-200 dark:hover:border-red-800/30 cursor-pointer"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" /></svg>
+              Delete Diagram
+            </button>
           </div>
         </div>
-      </div>
+      )}
+
+      {showStylingTools && (
+        <>
+          {selectedDiagramId && !isEditing && (
+            <div className="h-px w-full bg-neutral-200 dark:bg-neutral-800 my-[-4px]" />
+          )}
+          
+          {/* Stroke Color */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Stroke</label>
+            <div className="flex flex-wrap gap-2">
+              {STROKE_COLORS.map((color) => {
+                const isSelected = activeStroke === color || (color === '#1e1e1e' && (activeStroke === '#1e1e1e' || activeStroke === '#f3f4f6'))
+                const renderColor = color === '#1e1e1e' ? (isDark ? '#e5e7eb' : '#1e1e1e') : color
+                return (
+                  <button
+                    key={color}
+                    onClick={() => handleStyleChange({ strokeColor: color })}
+                    className={`w-6 h-6 rounded-md transition-transform hover:scale-110 border ${
+                      isSelected ? 'border-indigo-500 ring-2 ring-indigo-500/40 ring-offset-1 dark:ring-offset-neutral-900' : 'border-neutral-200 dark:border-neutral-700'
+                    }`}
+                    style={{ backgroundColor: renderColor }}
+                    title="Stroke color"
+                  />
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Fill Color */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Background</label>
+            <div className="flex flex-wrap gap-2">
+              {FILL_COLORS.map((color) => {
+                const isSelected = activeFill === color
+                const isTransparent = color === 'transparent'
+                return (
+                  <button
+                    key={color}
+                    onClick={() => handleStyleChange({ fillColor: color })}
+                    className={`w-6 h-6 rounded-md transition-transform hover:scale-110 border relative overflow-hidden flex items-center justify-center ${
+                      isSelected ? 'border-indigo-500 ring-2 ring-indigo-500/40 ring-offset-1 dark:ring-offset-neutral-900' : 'border-neutral-200 dark:border-neutral-700'
+                    }`}
+                    style={{ backgroundColor: isTransparent ? undefined : (color === '#1e1e1e' && isDark ? '#e5e7eb' : color) }}
+                    title="Fill color"
+                  >
+                    {isTransparent && (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-40">
+                        <line x1="3" y1="3" x2="21" y2="21" />
+                        <line x1="21" y1="3" x2="3" y2="21" />
+                      </svg>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Stroke Width */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Stroke width</label>
+            <div className="flex gap-2">
+              {STROKE_WIDTHS.map((width) => {
+                const isSelected = activeStrokeWidth === width
+                return (
+                  <button
+                    key={width}
+                    onClick={() => handleStyleChange({ strokeWidth: width })}
+                    className={`flex-1 h-8 flex items-center justify-center rounded-lg transition border ${
+                      isSelected 
+                        ? 'bg-indigo-100/50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' 
+                        : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
+                    }`}
+                  >
+                    <div className="w-4 bg-currentColor rounded-full" style={{ height: width, backgroundColor: 'currentColor' }} />
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Stroke Style */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Stroke style</label>
+            <div className="flex gap-2">
+              {STROKE_STYLES.map((style) => {
+                const isSelected = activeStrokeStyle === style
+                return (
+                  <button
+                    key={style}
+                    onClick={() => handleStyleChange({ strokeStyle: style })}
+                    className={`flex-1 h-8 flex items-center justify-center rounded-lg transition border ${
+                      isSelected 
+                        ? 'bg-indigo-100/50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' 
+                        : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
+                    }`}
+                  >
+                    {style === 'solid' && <div className="w-5 h-[2px] bg-currentColor" />}
+                    {style === 'dashed' && (
+                      <div className="flex gap-1">
+                        <div className="w-2 h-[2px] bg-currentColor" /><div className="w-2 h-[2px] bg-currentColor" />
+                      </div>
+                    )}
+                    {style === 'dotted' && (
+                      <div className="flex gap-[3px]">
+                        <div className="w-[3px] h-[3px] rounded-full bg-currentColor" />
+                        <div className="w-[3px] h-[3px] rounded-full bg-currentColor" />
+                        <div className="w-[3px] h-[3px] rounded-full bg-currentColor" />
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Sloppiness */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Sloppiness</label>
+            <div className="flex gap-2">
+              {ROUGHNESSES.map((r, i) => {
+                const isSelected = activeRoughness === r
+                return (
+                  <button
+                    key={r}
+                    onClick={() => handleStyleChange({ roughness: r })}
+                    className={`flex-1 h-8 flex items-center justify-center rounded-lg transition border ${
+                      isSelected 
+                        ? 'bg-indigo-100/50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' 
+                        : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
+                    }`}
+                  >
+                    {i === 0 && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12h16" /></svg>}
+                    {i === 1 && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12s4-4 8 0 8 0 8 0" /></svg>}
+                    {i === 2 && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12s3-6 8 0 8-3 8-3" /></svg>}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Edges */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Edges</label>
+            <div className="flex gap-2">
+              {ROUNDNESSES.map((round) => {
+                const isSelected = activeRoundness === round
+                return (
+                  <button
+                    key={round}
+                    onClick={() => handleStyleChange({ roundness: round })}
+                    className={`w-[60px] h-8 flex items-center justify-center rounded-lg transition border ${
+                      isSelected 
+                        ? 'bg-indigo-100/50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' 
+                        : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
+                    }`}
+                  >
+                    {round === 'sharp' ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="3 3"><rect x="3" y="3" width="18" height="18" /></svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="3 3"><rect x="3" y="3" width="18" height="18" rx="5" /></svg>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Opacity */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Opacity</label>
+            <div className="flex flex-col gap-1 relative">
+              <input 
+                type="range" 
+                min="0" max="100" 
+                value={activeOpacity}
+                onChange={(e) => handleStyleChange({ opacity: parseInt(e.target.value) })}
+                className="w-full accent-indigo-500"
+              />
+              <div className="flex justify-between text-[10px] text-neutral-400 font-mono mt-1">
+                <span>0</span>
+                <span>100</span>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Layers & Actions (Only when element is selected) */}
       {isEditing && (

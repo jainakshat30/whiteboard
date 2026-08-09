@@ -6,6 +6,13 @@ import { DiagramPatchEngine } from '../patch/DiagramPatchEngine';
 import { LayoutFactory } from '../layout/LayoutFactory';
 import { DiagramCanvasIntegration } from '../integration/DiagramCanvasIntegration';
 
+export class ClarificationRequiredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ClarificationRequiredError';
+  }
+}
+
 export class DiagramEditService {
   /**
    * Orchestrates the complete end-to-end AI editing flow.
@@ -51,7 +58,7 @@ export class DiagramEditService {
     const editResponse = await generator.generatePatch(currentGraph, instruction);
 
     if (editResponse.status === 'NEEDS_CLARIFICATION') {
-      throw new Error(`AI Request: ${editResponse.message}`);
+      throw new ClarificationRequiredError(editResponse.message);
     }
 
     const patch = editResponse.patch;
