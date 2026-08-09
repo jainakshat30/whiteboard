@@ -71,17 +71,36 @@ export class DiagramCanvasIntegration {
    * and replaces the old elements with the new ones in a single Yjs transaction.
    */
   public static updateDiagram(graph: PositionedGraph, diagramId: string, existingElements: Element[]): Element[] {
-    // 1. Calculate existing origin
+    // 1. Calculate existing center
     let originX = 0;
     let originY = 0;
+    let oldCenterX = 0;
+    let oldCenterY = 0;
     
     if (existingElements.length > 0) {
-      originX = Math.min(...existingElements.map(e => e.x));
-      originY = Math.min(...existingElements.map(e => e.y));
+      const minX = Math.min(...existingElements.map(e => e.x));
+      const minY = Math.min(...existingElements.map(e => e.y));
+      const maxX = Math.max(...existingElements.map(e => e.x + e.width));
+      const maxY = Math.max(...existingElements.map(e => e.y + e.height));
+      oldCenterX = (minX + maxX) / 2;
+      oldCenterY = (minY + maxY) / 2;
     }
 
     // 2. Map to raw elements
     const rawElements = DiagramMapper.map(graph);
+
+    // 3. Calculate new center to compute offsets
+    if (existingElements.length > 0 && rawElements.length > 0) {
+      const newMinX = Math.min(...rawElements.map(e => e.x));
+      const newMinY = Math.min(...rawElements.map(e => e.y));
+      const newMaxX = Math.max(...rawElements.map(e => e.x + e.width));
+      const newMaxY = Math.max(...rawElements.map(e => e.y + e.height));
+      const newWidth = newMaxX - newMinX;
+      const newHeight = newMaxY - newMinY;
+
+      originX = oldCenterX - (newWidth / 2) - newMinX;
+      originY = oldCenterY - (newHeight / 2) - newMinY;
+    }
     
     // 3. ID collision and remapping (preserve existing mapper UUID strategy)
     const idMap = new Map<string, string>();

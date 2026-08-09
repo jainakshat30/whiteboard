@@ -30,15 +30,44 @@ export function calculateNodeDimensions(label: string): { width: number; height:
   const paddingY = 40; // 20px top + 20px bottom
   const charWidth = 9.6; // Approximate width for 16px Inter font
   const lineSpacing = 24; // 16px font + line height
+  const maxWidth = 400;
+  const maxContentWidth = maxWidth - paddingX;
 
   const lines = label.split('\n');
-  const maxLineLength = Math.max(...lines.map(l => l.length));
-  
-  let width = maxLineLength * charWidth + paddingX;
-  let height = lines.length * lineSpacing + paddingY;
+  let totalWrappedLines = 0;
+  let maxLineWidthFound = 0;
+
+  for (const line of lines) {
+    const words = line.split(' ');
+    let currentLineLength = 0;
+
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      const wordLen = word.length;
+      
+      // If adding this word exceeds maxContentWidth (in chars) and it's not the first word of the line
+      if (currentLineLength + wordLen > (maxContentWidth / charWidth) && currentLineLength > 0) {
+        // Wrap to a new line
+        totalWrappedLines++;
+        maxLineWidthFound = Math.max(maxLineWidthFound, currentLineLength - 1); // -1 removes trailing space
+        currentLineLength = wordLen + 1; // Start new line with this word + space
+      } else {
+        currentLineLength += wordLen + 1; // Add word + space
+      }
+    }
+    
+    // Add the remainder of the line
+    if (currentLineLength > 0) {
+      totalWrappedLines++;
+      maxLineWidthFound = Math.max(maxLineWidthFound, currentLineLength - 1);
+    }
+  }
+
+  let width = maxLineWidthFound * charWidth + paddingX;
+  let height = totalWrappedLines * lineSpacing + paddingY;
 
   // Enforce reasonable boundaries
-  width = Math.max(120, Math.min(width, 400));
+  width = Math.max(120, Math.min(width, maxWidth));
   height = Math.max(60, height);
 
   return { width, height };
