@@ -6,13 +6,17 @@ type SceneState = {
   boardId: string | null
   elements: Element[]
   selectedId: string | null
+  selectedDiagramId: string | null
   initBoard: (boardId: string) => void
   addElement: (element: Element) => void
   addElements: (elements: Element[]) => void
   updateElement: (id: string, patch: Partial<Element>) => void
+  updateElements: (patches: {id: string, patch: Partial<Element>}[]) => void
   removeElement: (id: string) => void
+  removeElements: (ids: string[]) => void
   clearElements: () => void
   setSelectedId: (id: string | null) => void
+  setSelectedDiagramId: (id: string | null) => void
   bringToFront: (id: string) => void
   sendToBack: (id: string) => void
   bringForward: (id: string) => void
@@ -23,6 +27,7 @@ export const useSceneStore = create<SceneState>((set) => ({
   boardId: null,
   elements: [],
   selectedId: null,
+  selectedDiagramId: null,
   initBoard: (boardId) => {
     if (useSceneStore.getState().boardId === boardId) {
       return
@@ -34,6 +39,7 @@ export const useSceneStore = create<SceneState>((set) => ({
       boardId,
       elements: Array.from(yElements.values()).sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)),
       selectedId: null,
+      selectedDiagramId: null,
     })
 
     yElements.observe(() => {
@@ -79,6 +85,20 @@ export const useSceneStore = create<SceneState>((set) => ({
       selectedId: state.selectedId === id ? null : state.selectedId,
     }))
   },
+  removeElements: (ids: string[]) => {
+    const boardId = useSceneStore.getState().boardId
+    if (!boardId) return
+
+    const { ydoc, yElements } = getBoardConnection(boardId)
+    ydoc.transact(() => {
+      ids.forEach((id) => yElements.delete(id))
+    })
+
+    set((state) => ({
+      selectedId: ids.includes(state.selectedId || '') ? null : state.selectedId,
+      selectedDiagramId: null,
+    }))
+  },
   clearElements: () => {
     const boardId = useSceneStore.getState().boardId
     if (!boardId) return
@@ -88,7 +108,7 @@ export const useSceneStore = create<SceneState>((set) => ({
       Array.from(yElements.keys()).forEach((key) => yElements.delete(key))
     })
 
-    set({ selectedId: null })
+    set({ selectedId: null, selectedDiagramId: null })
   },
   updateElement: (id, patch) => {
     const boardId = useSceneStore.getState().boardId
@@ -101,7 +121,22 @@ export const useSceneStore = create<SceneState>((set) => ({
       yElements.set(id, { ...existing, ...patch, version: existing.version + 1 })
     })
   },
-  setSelectedId: (id) => set({ selectedId: id }),
+  updateElements: (patches: {id: string, patch: Partial<Element>}[]) => {
+    const boardId = useSceneStore.getState().boardId
+    if (!boardId) return
+
+    const { ydoc, yElements } = getBoardConnection(boardId)
+    ydoc.transact(() => {
+      patches.forEach(({ id, patch }) => {
+        const existing = yElements.get(id)
+        if (existing) {
+          yElements.set(id, { ...existing, ...patch, version: existing.version + 1 })
+        }
+      })
+    })
+  },
+  setSelectedId: (id) => set({ selectedId: id, selectedDiagramId: null }),
+  setSelectedDiagramId: (id) => set({ selectedDiagramId: id, selectedId: null }),
   bringToFront: (id) => {
     const boardId = useSceneStore.getState().boardId
     if (!boardId) return

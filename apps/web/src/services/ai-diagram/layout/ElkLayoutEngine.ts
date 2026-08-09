@@ -2,7 +2,7 @@ import ELK, { ElkNode, ElkExtendedEdge } from 'elkjs/lib/elk.bundled.js';
 import { DiagramGraph, PositionedGraph, PositionedNode, LayoutMetadata } from '../../../types/ai-diagram';
 import { ILayoutEngine, LayoutOptions } from './ILayoutEngine';
 import { ILayoutStrategy } from './strategies/ILayoutStrategy';
-import { isGraphEmpty, handleEmptyGraph } from './helpers';
+import { isGraphEmpty, handleEmptyGraph, calculateNodeDimensions } from './helpers';
 import { DEFAULT_NODE_WIDTH, DEFAULT_NODE_HEIGHT, HORIZONTAL_SPACING, VERTICAL_SPACING, DEFAULT_MARGIN } from './constants';
 
 export class ElkLayoutEngine implements ILayoutEngine {
@@ -46,10 +46,12 @@ export class ElkLayoutEngine implements ILayoutEngine {
       const node = graph.nodes.find(n => n.id === nodeId);
       if (!node) return { id: nodeId };
       
+      const dimensions = calculateNodeDimensions(node.label || '');
+
       const elkNode: ElkNode = {
         id: node.id,
-        width: config.nodeWidth,
-        height: config.nodeHeight
+        width: dimensions.width,
+        height: dimensions.height
       };
 
       if (node.children && node.children.length > 0) {
@@ -115,6 +117,7 @@ export class ElkLayoutEngine implements ILayoutEngine {
           if (originalNode) {
             const absoluteX = xOffset + (elkNode.x || 0);
             const absoluteY = yOffset + (elkNode.y || 0);
+            // Use the dimensions from the elk node, which were calculated dynamically
             const width = elkNode.width || config.nodeWidth;
             const height = elkNode.height || config.nodeHeight;
 
