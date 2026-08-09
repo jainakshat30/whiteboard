@@ -35,10 +35,11 @@ export class DiagramCanvasIntegration {
       // Apply UUID
       finalEl.id = idMap.get(el.id)!;
       
-      // Update metadata with diagram instance ID
+      // Update metadata with diagram instance ID and type
       finalEl.metadata = {
         ...finalEl.metadata,
         diagramId,
+        diagramType: graph.type,
       };
 
       // If it's an edge (mapped to 'line'), remap its structural connections
