@@ -64,4 +64,61 @@ export class DiagramCanvasIntegration {
 
     return finalElements;
   }
+
+  /**
+   * Updates an existing diagram atomically.
+   * Maps the new PositionedGraph, applies the existing diagram's origin,
+   * and replaces the old elements with the new ones in a single Yjs transaction.
+   */
+  public static updateDiagram(graph: PositionedGraph, diagramId: string, existingElements: Element[]): Element[] {
+    // 1. Calculate existing origin
+    let originX = 0;
+    let originY = 0;
+    
+    if (existingElements.length > 0) {
+      originX = Math.min(...existingElements.map(e => e.x));
+      originY = Math.min(...existingElements.map(e => e.y));
+    }
+
+    // 2. Map to raw elements
+    const rawElements = DiagramMapper.map(graph);
+    
+    // 3. ID collision and remapping (preserve existing mapper UUID strategy)
+    const idMap = new Map<string, string>();
+    for (const el of rawElements) {
+      idMap.set(el.id, crypto.randomUUID());
+    }
+
+    const finalElements: Element[] = rawElements.map(el => {
+      const finalEl = { ...el };
+      finalEl.id = idMap.get(el.id)!;
+      
+      finalEl.metadata = {
+        ...finalEl.metadata,
+        diagramId,
+        diagramType: graph.type,
+      };
+
+      if (finalEl.type === 'line' && finalEl.metadata) {
+        if (finalEl.metadata.sourceId) {
+          finalEl.metadata.sourceId = idMap.get(finalEl.metadata.sourceId as string) || finalEl.metadata.sourceId;
+        }
+        if (finalEl.metadata.targetId) {
+          finalEl.metadata.targetId = idMap.get(finalEl.metadata.targetId as string) || finalEl.metadata.targetId;
+        }
+      }
+
+      // Apply Origin offset
+      finalEl.x += originX;
+      finalEl.y += originY;
+
+      return finalEl;
+    });
+
+    // 4. Atomic Replacement in Scene Store
+    const oldElementIds = existingElements.map(e => e.id);
+    useSceneStore.getState().replaceElements(oldElementIds, finalElements);
+
+    return finalElements;
+  }
 }
