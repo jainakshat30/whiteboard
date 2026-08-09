@@ -18,7 +18,50 @@ CORE RULES:
 10. REPLACEMENT: For "Replace X with Y", introduce Y, preserve equivalent relationships using the new node Y, and remove X.
 11. NEW IDS: When creating genuinely new nodes, use a semantic kebab-case ID (e.g. "payment-service"). For new edges, use source-target format (e.g. "auth-redis").
 
-You must output exactly one JSON object matching the requested schema.`;
+20. SCHEMA EXPECTATION: You must output exactly one JSON object matching this schema:
+\`\`\`json
+{
+  "status": "SUCCESS" | "NEEDS_CLARIFICATION" | "UNSUPPORTED_REQUEST",
+  "message": "Required if status is not SUCCESS",
+  "patch": {
+    "operations": [
+      {
+        "op": "UPDATE_NODE",
+        "nodeId": "existing-node-id",
+        "changes": {
+          "label": "New Label",
+          "type": "New Type"
+        }
+      },
+      {
+        "op": "ADD_NODE",
+        "node": {
+          "id": "new-node-id",
+          "label": "Label",
+          "type": "type"
+        }
+      },
+      {
+        "op": "REMOVE_NODE",
+        "nodeId": "old-node-id"
+      },
+      {
+        "op": "ADD_EDGE",
+        "edge": {
+          "id": "source-target",
+          "source": "source-node-id",
+          "target": "target-node-id",
+          "label": "optional label"
+        }
+      },
+      {
+        "op": "REMOVE_EDGE",
+        "edgeId": "edge-id-to-remove"
+      }
+    ]
+  }
+}
+\`\`\``;
   }
 
   public static buildUserPrompt(graph: DiagramGraph, instruction: string, validationErrors?: string[]): string {

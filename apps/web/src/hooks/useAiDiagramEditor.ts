@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSceneStore } from '@/store/scene';
 import { DiagramEditService, ClarificationRequiredError, UnsupportedRequestError, PreparedDiagramEdit } from '@/services/ai-diagram/editor/DiagramEditService';
-import { GeminiProvider } from '@/services/ai-diagram/providers/GeminiProvider';
+
 
 export function useAiDiagramEditor() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -30,12 +30,11 @@ export function useAiDiagramEditor() {
     setPreparedEdit(null);
 
     try {
-      const provider = new GeminiProvider();
       const prepared = await DiagramEditService.prepareEdit(
         selectedDiagramId,
         instruction,
-        elements,
-        provider
+        elements
+        // aiProvider is undefined, so it uses the API endpoint
       );
       setPreparedEdit(prepared);
       return true;

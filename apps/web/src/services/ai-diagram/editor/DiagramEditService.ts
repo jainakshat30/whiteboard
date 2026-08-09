@@ -49,7 +49,7 @@ export class DiagramEditService {
     diagramId: string,
     instruction: string,
     allElements: Element[],
-    aiProvider: IAIProvider
+    aiProvider?: IAIProvider
   ): Promise<PreparedDiagramEdit> {
     if (!diagramId) {
       throw new Error('DiagramEditService: No diagram selected for editing.');
@@ -68,8 +68,28 @@ export class DiagramEditService {
     const currentGraph = DiagramStateExtractor.extractDiagram(existingDiagramElements, diagramId);
 
     // 2. Generate Semantic Patch
-    const generator = new DiagramPatchGenerator(aiProvider);
-    const editResponse = await generator.generatePatch(currentGraph, instruction);
+    let editResponse;
+    
+    if (aiProvider) {
+      // Local execution (for tests)
+      const generator = new DiagramPatchGenerator(aiProvider);
+      editResponse = await generator.generatePatch(currentGraph, instruction);
+    } else {
+      // API execution (for client)
+      const res = await fetch('/api/ai-diagram/edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ graph: currentGraph, instruction }),
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.message || data.error || 'Failed to generate patch');
+      }
+      
+      editResponse = data.editResponse;
+    }
 
     if (editResponse.status === 'NEEDS_CLARIFICATION') {
       throw new ClarificationRequiredError(editResponse.message);

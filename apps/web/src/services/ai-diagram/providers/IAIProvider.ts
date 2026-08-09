@@ -4,6 +4,7 @@ export interface StructuredGenerationRequest<T> {
   systemPrompt: string;
   userPrompt: string;
   responseSchema: ZodSchema<T>;
+  jsonSchema?: any; // Optional JSON schema for provider
   model?: string; // Optional provider-specific configuration
   temperature?: number;
 }
