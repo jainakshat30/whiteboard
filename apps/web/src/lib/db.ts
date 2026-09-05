@@ -22,23 +22,15 @@ export type BoardRecord = {
 export async function getBoards(
   userId?: string | null
 ): Promise<BoardRecord[]> {
-  if (userId) {
-    const result = await pool.query(
-      `SELECT id, title, subject, created_at, updated_at, "userId"
-       FROM boards
-       WHERE "userId" = $1 OR "userId" IS NULL
-       ORDER BY updated_at DESC`,
-      [userId]
-    )
-
-    return result.rows
-  }
+  // Ownerless boards (e.g. the benchmark test board) belong to nobody and are shown to nobody.
+  if (!userId) return []
 
   const result = await pool.query(
     `SELECT id, title, subject, created_at, updated_at, "userId"
      FROM boards
-     WHERE "userId" IS NULL
-     ORDER BY updated_at DESC`
+     WHERE "userId" = $1
+     ORDER BY updated_at DESC`,
+    [userId]
   )
 
   return result.rows

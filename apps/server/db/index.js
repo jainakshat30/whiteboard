@@ -71,9 +71,21 @@ export async function getUserIdFromToken(token) {
   return null
 }
 
+// An unclaimed board (no owner row, or no board row yet) is drawable by whoever opens it,
+// signed in or not - same rule already applied to signed-in users below.
+export function roleForUnclaimedBoard(boardRows) {
+  return boardRows.length === 0 || !boardRows[0].userId ? 'HOST' : 'AUDIENCE'
+}
+
 export async function getUserRole(boardId, userId) {
   if (!userId) {
-    return 'AUDIENCE'
+    try {
+      const result = await pool.query('SELECT "userId" FROM boards WHERE id = $1', [boardId])
+      return roleForUnclaimedBoard(result.rows)
+    } catch (e) {
+      console.error("Error checking board owner for anonymous user:", e)
+      return 'AUDIENCE'
+    }
   }
   
   try {

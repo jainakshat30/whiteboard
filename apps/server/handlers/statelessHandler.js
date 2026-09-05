@@ -60,7 +60,8 @@ export async function handleStatelessMessage({ instance, document, connection, d
   if (!userId && data.token) {
     userId = await getUserIdFromToken(data.token)
   }
-  if (userId && !role) {
+  if (!role) {
+    // Resolves anonymous callers too - unclaimed boards grant HOST.
     role = await getUserRole(documentName, userId)
   }
 
@@ -71,9 +72,7 @@ export async function handleStatelessMessage({ instance, document, connection, d
       if (!userId && data.token) {
         userId = await getUserIdFromToken(data.token)
       }
-      if (userId) {
-        role = await getUserRole(documentName, userId)
-      }
+      role = await getUserRole(documentName, userId)
       const userRole = role || 'AUDIENCE'
       
       if (connection) {
